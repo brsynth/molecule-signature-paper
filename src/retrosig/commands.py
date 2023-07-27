@@ -6,6 +6,7 @@ import time
 from retrosig.library.imports import *
 from retrosig.library.utils import read_csv
 from retrosig.library.signature_alphabet import AlphabetObject, LoadAlphabet
+from library.one_step_retro import ReactionObject, LoadReaction
 from retrosig._version import __app_name__, __version__
 from retrosig.utils import cmdline
 
@@ -17,14 +18,17 @@ AP = argparse.ArgumentParser(
 AP_subparsers = AP.add_subparsers(help="Sub-commnands (use with -h for more info)")
 
 
-def _cmd_alpha_sig(args):
-    logging.info("Start - Alphabet Signature")
-    # Check arguments.
+def _cmd_alphabet(args):
+    logging.info("Start - Alphabet")
+    # Check arguments
     if not os.path.isfile(args.input_smiles_csv):
         cmdline.abort(
             AP, "Input csv file does not exist: %s" % (args.input_smiles_csv,)
         )
-    cmdline.check_output_dir(parser=AP, path=args.output_directory_str)
+    cmdline.check_output_file(parser=AP, path=args.output_signature_npz)
+    cmdline.check_output_file(parser=AP, path=args.output_reaction_npz)
+
+    # Init
     radius = args.parameters_radius_int
     nBits = args.parameters_nbits_int
     neighbors = True
@@ -34,21 +38,14 @@ def _cmd_alpha_sig(args):
     if args.parameters_all_hs_explicit_bool:
         allHsExplicit = args.parameters_all_hs_explicit_bool
 
-    # Ouput basename.
-    ext = "_N" if neighbors else ""
-    ext += "H" if allHsExplicit else ""
-    ext = ext + "_" + str(radius) + "_" + str(nBits)
-    # file_smiles = "./rules/retrorules_rr02_flat_all"
-    output_basename = "retrosig_alphabet_signature" + ext
-
     # Load Smiles file
     logging.info("Load file")
     H, D = read_csv(args.input_smiles_csv)
-    print(f"Header={H}\nD={D.shape}")
+    logging.info(f"Header={H}\nD={D.shape}")
     Smiles = np.asarray(list(set(D[:, 7]).union(set(D[:, 9]))))
-    print(f"Number of smiles: {len(Smiles)}")
+    logging.info(f"Number of smiles: {len(Smiles)}")
 
-    # Get save and load Alphabet
+    # Alphabet Signature
     logging.info("Build Alphabet")
     start_time = time.time()
     Alphabet = AlphabetObject(
@@ -56,48 +53,64 @@ def _cmd_alpha_sig(args):
     )
     Alphabet.fill(Smiles, verbose=True)
 
-    logging.info("Save Alphabet")
-    Alphabet.save(output_basename)
-    Alphabet = LoadAlphabet(file_alphabet)
-    print(f"CPU time compute Alphabet: {time.time() - start_time:.2f}")
+    logging.info("Save Alphabet Signature")
+    Alphabet.save(args.output_signature_npz)
+    logging.info(f"CPU time compute Alphabet: {time.time() - start_time:.2f}")
     Alphabet.printout()
 
-    logging.info("End - Alphabet Signature")
+    # Alphabet Reaction
+    logging.info("Build Alphabet Reaction")
+    start_time = time.time()
+    D = D[np.transpose(np.argwhere(D[:, 3] == 2 * Alphabet.radius))[0]]
+    logging.info(f"Reaction size: {D.shape[0]}")
+    Reaction = ReactionObject(Alphabet)
+    # Substrate, Product, ID, Diameter, Rule, Score, Direction
+    Reaction.fill(D[:, 7], D[:, 9], D[:, 0], D[:, 3], D[:, 5], D[:, 13], D[:, 15])
+    logging.info("Save Alphabet Reaction")
+    Reaction.save(args.output_reaction_npz)
+    logging.info(f"CPU time compute Alphabet: {time.time() - start_time:.2f}")
+    Reaction.printout()
+
+    logging.info("End - Alphabet")
 
 
-P_alpha_sig = AP_subparsers.add_parser(
-    "alphabet-signature", help=_cmd_alpha_sig.__doc__
-)
+P_alphabet = AP_subparsers.add_parser("alphabet", help=_cmd_alphabet.__doc__)
 # Input
-P_alpha_sig_input = P_alpha_sig.add_argument_group("Input")
-P_alpha_sig_input.add_argument(
+P_alphabet_input = P_alphabet.add_argument_group("Input")
+P_alphabet_input.add_argument(
     "--input-smiles-csv", required=True, help="CSV file with 2 columns"
 )
 # Output
-P_alpha_sig_output = P_alpha_sig.add_argument_group("Output")
-P_alpha_sig_output.add_argument(
-    "--output-directory-str", required=True, help="Output directory"
+P_alphabet_output = P_alphabet.add_argument_group("Output")
+P_alphabet_output.add_argument(
+    "--output-signature-npz",
+    required=True,
+    help="Output file, Alphabet Signature, .npz",
 )
+P_alphabet_output.add_argument(
+    "--output-reaction-npz", required=True, help="Output file, Alphabet Reaction, .npz"
+)
+#
 # Parameters
-P_alpha_sig_params = P_alpha_sig.add_argument_group("Parameters")
-P_alpha_sig_params.add_argument(
+P_alphabet_params = P_alphabet.add_argument_group("Parameters")
+P_alphabet_params.add_argument(
     "--parameters-radius-int", type=int, default=2, help="Radius value"
 )
-P_alpha_sig_params.add_argument(
+P_alphabet_params.add_argument(
     "--parameters-nbits-int",
     type=int,
     default=2048,
     help="",
 )
-P_alpha_sig_params.add_argument(
+P_alphabet_params.add_argument(
     "--parameters-not-neighbors-bool", action="store_true", help="Compute neighbors"
 )
-P_alpha_sig_params.add_argument(
+P_alphabet_params.add_argument(
     "--parameters-all-hs-explicit-bool", action="store_true", help="Add all HsExplicit"
 )
 
 
-P_alpha_sig.set_defaults(func=_cmd_alpha_sig)
+P_alphabet.set_defaults(func=_cmd_alphabet)
 
 
 # Version.
