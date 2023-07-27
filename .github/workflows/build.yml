@@ -43,6 +43,10 @@ jobs:
       - name: 'Check file present'
         run: |
           [[ -f CHANGELOG.md ]] || touch CHANGELOG.md
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.0' # Not needed with a .ruby-version file
+          bundler-cache: true
       - name: 'Generate CHANGELOG'
         env:
           CHANGELOG_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
