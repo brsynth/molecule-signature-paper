@@ -1,0 +1,41 @@
+{% set name = "retrosig" %}
+{% set version = "0.0.1" %}
+
+package:
+  name: {{ name }}
+  version: {{ version }}
+
+source:
+  path: ../
+
+build:
+  number: 0
+  noarch: python
+  script: {{ PYTHON }} -m pip install -vv .
+
+requirements:
+  build:
+    - pip
+    - python
+    - pyyaml
+    - setuptools
+  run:
+    - IPython
+    - pandas
+    - rdkit
+
+test:
+  imports:
+    - {{ name }}
+  commands:
+    - python -m {{ name }} --help
+
+about:
+  home: https://github.com/brsynth/{{ name }}
+  summary: Work with chemical signatures
+  license: MIT
+  license_file: LICENSE
+
+extra:
+  recipe-maintainers:
+    - guillaume-gricourt

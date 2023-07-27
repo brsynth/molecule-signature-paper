@@ -1,0 +1,12 @@
+name: test
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - IPython
+  - pandas
+  - rdkit
+  # Deps
+  - conda-build
+  - pandas
+  - pytest

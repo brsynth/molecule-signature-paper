@@ -1,0 +1,2 @@
+__app_name__ = "retrosig"
+__version__ = "0.0.1"
