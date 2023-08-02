@@ -3,10 +3,10 @@ import logging
 import os
 import time
 
-from retrosig.library.imports import *
-from retrosig.library.utils import read_csv
-from retrosig.library.signature_alphabet import AlphabetObject, LoadAlphabet
-from library.one_step_retro import ReactionObject, LoadReaction
+from library.imports import *
+from library.utils import read_csv
+#from library.signature_alphabet import AlphabetObject, LoadAlphabet
+#from library.one_step_retro import ReactionObject, LoadReaction
 from retrosig._version import __app_name__, __version__
 from retrosig.utils import cmdline
 
