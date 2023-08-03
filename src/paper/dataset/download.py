@@ -73,8 +73,8 @@ def filter(smi, radius, verbose=False):
         return "", "", "", "", None, "", ""
 
     mol = AllChem.MolFromSmiles(smiles)
-    fpgen = AllChem.GetMorganGenerator(radius=radius)
-    fp = fpgen.GetFingerprint(mol)
+    fpgen = AllChem.GetMorganGenerator(radius=radius, fpSize=2048)
+    fp = fpgen.GetFingerprint(mol)  # returns a bit vector (value 1 or 0)
     return sig1, sig2, sig3, sig4, mol, smi, "".join([str(x) for x in fp.ToList()])
 
 
