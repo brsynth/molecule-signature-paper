@@ -18,7 +18,9 @@ from retrosig.utils import cmd
 OUTPUT_DIR = os.path.join(os.getcwd(), "data")
 
 
-def sanitize(data, max_molecular_weight: int = 500, size: float = float("inf")) -> np.ndarray:
+def sanitize(
+    data, max_molecular_weight: int = 500, size: float = float("inf")
+) -> np.ndarray:
     # Remove molecules with weight > max_molecular_weight
     # and with more than one piece. Make sure all molecules
     # are unique.
@@ -80,7 +82,11 @@ def filter(smi, radius, verbose=False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output-directory-str", default=OUTPUT_DIR, help="Path of the output directory")
+    parser.add_argument(
+        "--output-directory-str",
+        default=OUTPUT_DIR,
+        help="Path of the output directory",
+    )
     parser.add_argument("--parameters-seed-int", default=0, type=int, help="Seed")
     parser.add_argument(
         "--parameters-max-molecular-weight-int",
@@ -98,10 +104,16 @@ if __name__ == "__main__":
         "--parameters-radius-int", default=2, type=int, help="Radius of the signature"
     )
     parser.add_argument(
-        "--parameters-valid-percent-float", default=10, type=float, help="Size of the validation dataset (%)"
+        "--parameters-valid-percent-float",
+        default=10,
+        type=float,
+        help="Size of the validation dataset (%)",
     )
     parser.add_argument(
-        "--parameters-test-percent-float", default=10, type=float, help="Size of the test dataset (%)"
+        "--parameters-test-percent-float",
+        default=10,
+        type=float,
+        help="Size of the test dataset (%)",
     )
     args = parser.parse_args()
 
@@ -132,7 +144,7 @@ if __name__ == "__main__":
                 url="https://www.metanetx.org/ftp/4.4/chem_prop.tsv",
                 path=fmetanetx_raw + ".tsv",
             )
-        with open(fmetanetx_raw + ".tsv") as fid, open(fmetanetx+".tsv", "w") as fod:
+        with open(fmetanetx_raw + ".tsv") as fid, open(fmetanetx + ".tsv", "w") as fod:
             towrite = False
             for line in fid:
                 if line.startswith("#ID"):
@@ -148,7 +160,11 @@ if __name__ == "__main__":
         H = ["ID", "SMILES"]
         D = D[:, [0, 8]]
         print(f"size={D.shape[0]}")
-        D = sanitize(D, args.parameters_max_molecular_weight_int, args.parameters_max_dataset_size_int)
+        D = sanitize(
+            D,
+            args.parameters_max_molecular_weight_int,
+            args.parameters_max_dataset_size_int,
+        )
         # f'{filename}_weight_{str(MaxMolecularWeight)}'
         # print(f'File={filename_metanetx_sanitize} Header={H} D={D.shape}')
         write_csv(fmetanetx_sanitize, H, D)
@@ -164,7 +180,9 @@ if __name__ == "__main__":
         H = ["SMILES", "SIG", "SIG-NEIGH", "SIG-NBIT", "SIG-NEIGH-NBIT", "ECFP4"]
         D, i = {}, 0
         for I in range(len(Smiles)):
-            sig1, sig2, sig3, sig4, mol, smi, fp = filter(Smiles[i], radius=args.parameters_radius_int)
+            sig1, sig2, sig3, sig4, mol, smi, fp = filter(
+                Smiles[i], radius=args.parameters_radius_int
+            )
             # TD WARNING: some smiles are filtered out but it should objectively not be the case
             #          because they are valid smiles and they are not too big, and they don't
             #          look like they are too complex or weird.
@@ -187,13 +205,13 @@ if __name__ == "__main__":
         D = np.asarray(list(D.values()))
         print("Number of smiles", len(D))
         df = pd.DataFrame(data=D, columns=H)
-        df.to_csv(fdataset+".csv", index=False)
+        df.to_csv(fdataset + ".csv", index=False)
 
     # Split Dataset
     if (
-            not os.path.isfile(fdataset_train + ".csv") or
-            not os.path.isfile(fdataset_valid + ".csv") or
-            not os.path.isfile(fdataset_test + ".csv")
+        not os.path.isfile(fdataset_train + ".csv")
+        or not os.path.isfile(fdataset_valid + ".csv")
+        or not os.path.isfile(fdataset_test + ".csv")
     ):
         H, D = read_csv(fdataset)
         np.random.shuffle(D)
@@ -204,26 +222,37 @@ if __name__ == "__main__":
         valid_size = round(args.parameters_valid_percent_float * total_size / 100.0)
         test_size = round(args.parameters_test_percent_float * total_size / 100.0)
         train_size = total_size - valid_size - test_size
-        print("Total size:", total_size, "Train size:", train_size, "Valid size:", valid_size, "Test size:", test_size)
-        train_data = D[: train_size]
+        print(
+            "Total size:",
+            total_size,
+            "Train size:",
+            train_size,
+            "Valid size:",
+            valid_size,
+            "Test size:",
+            test_size,
+        )
+        train_data = D[:train_size]
         valid_data = D[train_size: train_size + valid_size]
         test_data = D[train_size + valid_size:]
         print(D.shape[0], train_data.shape[0], valid_data.shape[0], test_data.shape[0])
-        assert train_data.shape[0] + valid_data.shape[0] + test_data.shape[0] == D.shape[0]
+        assert (
+            train_data.shape[0] + valid_data.shape[0] + test_data.shape[0] == D.shape[0]
+        )
         assert train_data.shape[0] == train_size
         assert valid_data.shape[0] == valid_size
         assert test_data.shape[0] == test_size
 
         df_train = pd.DataFrame(data=train_data, columns=H)
-        df_train.to_csv(fdataset_train+".csv", index=False)
+        df_train.to_csv(fdataset_train + ".csv", index=False)
         df_valid = pd.DataFrame(data=valid_data, columns=H)
-        df_valid.to_csv(fdataset_valid+".csv", index=False)
+        df_valid.to_csv(fdataset_valid + ".csv", index=False)
         df_test = pd.DataFrame(data=test_data, columns=H)
-        df_test.to_csv(fdataset_test+".csv", index=False)
+        df_test.to_csv(fdataset_test + ".csv", index=False)
 
     # Alphabet Signature
     print("Build Signature alphabet")
-    df = pd.read_csv(fdataset+".csv")
+    df = pd.read_csv(fdataset + ".csv")
     Alphabet = SignatureAlphabet(
         radius=args.parameters_radius_int, nBits=0, neighbors=False, allHsExplicit=False
     )

@@ -63,8 +63,8 @@ class PreTokenizer(object):
     @classmethod
     def pretokenize_smiles(cls, smiles: str) -> str:
         tokens = [token for token in cls.REGEX_SMILES.findall(smiles)]
-        assert smiles == ''.join(tokens)
-        return ' '.join(tokens)
+        assert smiles == "".join(tokens)
+        return " ".join(tokens)
 
     @classmethod
     def pretokenize_ecfp4(cls, ecfp4: str) -> str:
@@ -115,8 +115,16 @@ def tokenize(src_file: str, model_prefix: str, vocab_size: int = -1):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Tokenize datasets.")
-    parser.add_argument("--input-directory-str", required=True, help="Path of the input directory where to find train, test and valid datasets (CSV files). Files are expected to be named dataset.train.csv, dataset.test.csv and dataset.valid.csv.")
-    parser.add_argument("--output-directory-str", default=OUTPUT_DIR, help=f"Path of the output directory. Default: {OUTPUT_DIR}")
+    parser.add_argument(
+        "--input-directory-str",
+        required=True,
+        help="Path of the input directory where to find train, test and valid datasets (CSV files). Files are expected to be named dataset.train.csv, dataset.test.csv and dataset.valid.csv.",
+    )
+    parser.add_argument(
+        "--output-directory-str",
+        default=OUTPUT_DIR,
+        help=f"Path of the output directory. Default: {OUTPUT_DIR}",
+    )
 
     args = parser.parse_args()
 
@@ -141,21 +149,33 @@ if __name__ == "__main__":
     df_pretokenized = pd.DataFrame()
     # SMILES
     df_pretokenized["SMILES"] = df["SMILES"].apply(PreTokenizer.pretokenize_smiles)
-    df_pretokenized["SMILES"].to_csv(os.path.join(args.output_directory_str, TMP_DIR, "src.txt"), index=False, header=False)
+    df_pretokenized["SMILES"].to_csv(
+        os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
+        index=False,
+        header=False,
+    )
     tokenize(
         src_file=os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
         model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "smiles"),
     )
     # SIG
     df_pretokenized["SIG"] = df["SIG"].apply(PreTokenizer.pretokenize_signature)
-    df_pretokenized["SIG"].to_csv(os.path.join(args.output_directory_str, TMP_DIR, "src.txt"), index=False, header=False)
+    df_pretokenized["SIG"].to_csv(
+        os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
+        index=False,
+        header=False,
+    )
     tokenize(
         src_file=os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
         model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "sig"),
     )
     # ECFP4
     df_pretokenized["ECFP4"] = df["ECFP4"].apply(PreTokenizer.pretokenize_ecfp4)
-    df_pretokenized["ECFP4"].to_csv(os.path.join(args.output_directory_str, TMP_DIR, "src.txt"), index=False, header=False)
+    df_pretokenized["ECFP4"].to_csv(
+        os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
+        index=False,
+        header=False,
+    )
     tokenize(
         src_file=os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
         model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "ecfp4"),
@@ -178,22 +198,28 @@ if __name__ == "__main__":
         df_pretokenized["ECFP4"] = df["ECFP4"].apply(PreTokenizer.pretokenize_ecfp4)
         # SMILES - SIG
         df_pretokenized[["SMILES", "SIG"]].to_csv(
-            os.path.join(args.output_directory_str, PAIRS_DIR, f"sig.smiles.{type_}.txt"),
+            os.path.join(
+                args.output_directory_str, PAIRS_DIR, f"sig.smiles.{type_}.txt"
+            ),
             sep="\t",
             index=False,
-            header=False
+            header=False,
         )
         # SIG - ECFP4
         df_pretokenized[["SIG", "ECFP4"]].to_csv(
-            os.path.join(args.output_directory_str, PAIRS_DIR, f"ecfp4.sig.{type_}.txt"),
+            os.path.join(
+                args.output_directory_str, PAIRS_DIR, f"ecfp4.sig.{type_}.txt"
+            ),
             sep="\t",
             index=False,
-            header=False
+            header=False,
         )
         # SMILES - ECFP4
         df_pretokenized[["SMILES", "ECFP4"]].to_csv(
-            os.path.join(args.output_directory_str, PAIRS_DIR, f"ecfp4.smiles.{type_}.txt"),
+            os.path.join(
+                args.output_directory_str, PAIRS_DIR, f"ecfp4.smiles.{type_}.txt"
+            ),
             sep="\t",
             index=False,
-            header=False
+            header=False,
         )
