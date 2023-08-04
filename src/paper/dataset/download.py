@@ -41,7 +41,7 @@ def sanitize(
         mol, smi = SanitizeMolecule(Chem.MolFromSmiles(smi))
         if mol is None:
             continue
-        if Chem.ExactMolWt(mol) > max_molecular_weight:
+        if Chem.Descriptors.ExactMolWt(mol) > max_molecular_weight:
             continue
         if smi in SMI:
             continue  # canonical smi aready there
