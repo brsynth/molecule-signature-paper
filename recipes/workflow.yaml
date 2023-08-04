@@ -7,6 +7,7 @@ dependencies:
   - numpy==1.25.1
   - pandas==2.0.3
   - rdkit==2023.03.2
+  - sentencepiece==0.1.99
   # Deps
   - conda-build
   - pandas
