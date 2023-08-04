@@ -107,13 +107,13 @@ if __name__ == "__main__":
         "--parameters-valid-percent-float",
         default=10,
         type=float,
-        help="Size of the validation dataset (%)",
+        help="Size of the validation dataset (%%)",
     )
     parser.add_argument(
         "--parameters-test-percent-float",
         default=10,
         type=float,
-        help="Size of the test dataset (%)",
+        help="Size of the test dataset (%%)",
     )
     args = parser.parse_args()
 
