@@ -148,7 +148,7 @@ if __name__ == "__main__":
         H, D = read_tsv(fmetanetx)
         H = ["ID", "SMILES"]
         D = D[:, [0, 8]]
-        np.random.shuffle(D)
+        # np.random.shuffle(D)  # TD: why?
         print(f"size={D.shape[0]}")
         D = sanitize(D, MaxMolecularWeight, size)
         # f'{filename}_weight_{str(MaxMolecularWeight)}'
