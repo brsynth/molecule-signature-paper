@@ -137,7 +137,7 @@ if __name__ == "__main__":
                     towrite = True
                 if towrite:
                     fod.write(line)
-        os.remove(fmetanetx_raw+".tsv")
+        # os.remove(fmetanetx_raw+".tsv")  # TD: don't remove otherwise it will be downloaded again
 
     # Sanitize
     if not os.path.isfile(fmetanetx_sanitize + ".csv"):
