@@ -26,6 +26,10 @@ In the `src` folder:
 - `library`: directory managed by JL
 - `retrosig`: translate jupyter notebook utilities to command line
 
+## Data
+
+Donwload link (as of 2023/8/4): see `data` folder from the `RetroSig` shared folder of JL (Google Drive)
+
 ## Paper
 
 ### `download.py`
@@ -44,3 +48,9 @@ python src/paper/dataset/tokenizer.py \
     --input-directory-str <indir containing dataset.*.csv files> \
     --output-directory-str <outdir>
 ```
+
+## Build models
+
+### Install chemigen
+
+See: [https://github.com/brsynth/chemigen]
