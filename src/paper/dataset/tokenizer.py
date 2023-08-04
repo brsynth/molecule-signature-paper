@@ -5,9 +5,11 @@ import sys
 from typing import Generator
 
 import pandas as pd
+import sentencepiece as spm
 
 
-class Tokenizer(object):
+
+class PreTokenizer(object):
     REGEX_ATOMS = re.compile(
         "(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\\\|\/|:|~|@|\?|>|\*|\$|\%[0-9]{2}|[0-9])"
     )
@@ -49,21 +51,61 @@ class Tokenizer(object):
             yield tokens
 
     @classmethod
-    def tokenize_signature(cls, signature: str, sep: str = " ") -> str:
+    def pretokenize_signature(cls, signature: str, sep: str = " ") -> str:
         res = []
         for token in cls.build_signature(signature=signature):
             res.extend(token)
         return sep.join(res)
 
     @classmethod
-    def tokenize_smiles(cls, smiles: str) -> str:
+    def pretokenize_smiles(cls, smiles: str) -> str:
         tokens = [token for token in cls.REGEX_SMILES.findall(smiles)]
         assert smiles == ''.join(tokens)
         return ' '.join(tokens)
 
     @classmethod
-    def tokenize_ecfp4(cls, ecfp4: str) -> str:
         return " ".join(list(ecfp4))
+    def pretokenize_ecfp4(cls, ecfp4: str) -> str:
+
+def count_words(filename: str) -> int:
+    words = set()
+    with open(filename, "r") as ifile:
+        for line in ifile:
+            for word in line.strip().split():
+                words.add(word)
+
+    return len(words)
+
+
+def tokenize(src_file: str, model_prefix: str, vocab_size: int = -1):
+    """Train a SentencePiece tokenizer.
+
+    Parameters
+    ----------
+    src_file : str
+        Path to the source file. Each line is a molecule.
+    model_prefix : str
+        Prefix of the model to be saved.
+    vocab_size : int, optional
+        Size of the vocabulary (default: -1). By default, the vocabulary is
+        not limited in size, which means that all the tokens in the source
+        file will be in the vocabulary.
+    """
+    if vocab_size == -1:
+        vocab_size = count_words(src_file) + 4  # +4 for the special tokens
+
+    spm.SentencePieceTrainer.Train(
+        input=src_file,
+        model_prefix=model_prefix,
+        vocab_size=vocab_size,
+        model_type="word",
+        character_coverage=1.0,
+        pad_id=0,
+        bos_id=1,
+        eos_id=2,
+        unk_id=3,
+    )
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
