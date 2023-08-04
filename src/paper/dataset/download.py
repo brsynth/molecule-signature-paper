@@ -8,7 +8,6 @@ import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
-from library.imports import *
 from library.signature import SanitizeMolecule
 from library.signature_alphabet import SignatureAlphabet, SignatureFromSmiles
 from library.utils import read_csv, read_tsv, write_csv
@@ -89,16 +88,16 @@ if __name__ == "__main__":
         "--parameters-max-dataset-size-int",
         default=float("inf"),
         type=float,
-        help="Max size dataset",
+        help="Max dataset size",
     )
     parser.add_argument(
-        "--parameters-radius-int", default=2, type=int, help="Max size dataset"
+        "--parameters-radius-int", default=2, type=int, help="Radius of the signature"
     )
     parser.add_argument(
-        "--parameters-valid-percent-float", default=5, type=float, help="Size valid dataset (%)"
+        "--parameters-valid-percent-float", default=5, type=float, help="Size of the validation dataset (%)"
     )
     parser.add_argument(
-        "--parameters-test-percent-float", default=5, type=float, help="Size test dataset (%)"
+        "--parameters-test-percent-float", default=5, type=float, help="Size of the test dataset (%)"
     )
     args = parser.parse_args()
 
@@ -180,7 +179,12 @@ if __name__ == "__main__":
         df = pd.DataFrame(data=D, columns=H)
         df.to_csv(fdataset+".csv", index=False)
 
-    if not os.path.isfile(fdataset_train + ".csv") or not os.path.isfile(fdataset_valid + ".csv") or not os.path.isfile(fdataset_test + ".csv"):
+    # Split Dataset
+    if (
+            not os.path.isfile(fdataset_train + ".csv") or
+            not os.path.isfile(fdataset_valid + ".csv") or
+            not os.path.isfile(fdataset_test + ".csv")
+    ):
         H, D = read_csv(fdataset)
         Smiles = np.asarray(list(set(D[:, 1])))
 
