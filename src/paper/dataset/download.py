@@ -14,6 +14,10 @@ from library.utils import read_csv, read_tsv, write_csv
 from retrosig.utils import cmd
 
 
+# Define the default path for the produced files
+OUTPUT_DIR = os.path.join(os.getcwd(), "data")
+
+
 def sanitize(data, max_molecular_weight: int = 500, size: float = float("inf")) -> np.ndarray:
     # Remove molecules with weight > max_molecular_weight
     # and with more than one piece. Make sure all molecules
@@ -76,7 +80,7 @@ def filter(smi, radius, verbose=False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output-directory-str", required=True, help="Path of the output directory")
+    parser.add_argument("--output-directory-str", default=OUTPUT_DIR, help="Path of the output directory")
     parser.add_argument("--parameters-seed-int", default=0, type=int, help="Seed")
     parser.add_argument(
         "--parameters-max-molecular-weight-int",
