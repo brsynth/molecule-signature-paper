@@ -101,12 +101,10 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Init
-    max_molecular_weight = args.parameters_max_molecular_weight_int
-    max_dataset_size = args.parameters_max_dataset_size_int
-
+    # Initialize random seed
     np.random.seed(seed=args.parameters_seed_int)
 
+    # Define the path of the produced files
     fmetanetx_raw = os.path.join(args.output_directory_str, "metanetx.raw.4_4")
     fmetanetx = os.path.join(args.output_directory_str, "metanetx.4_4")
     fmetanetx_sanitize = os.path.join(
@@ -146,7 +144,7 @@ if __name__ == "__main__":
         H = ["ID", "SMILES"]
         D = D[:, [0, 8]]
         print(f"size={D.shape[0]}")
-        D = sanitize(D, max_molecular_weight, max_dataset_size)
+        D = sanitize(D, args.parameters_max_molecular_weight_int, args.parameters_max_dataset_size_int)
         # f'{filename}_weight_{str(MaxMolecularWeight)}'
         # print(f'File={filename_metanetx_sanitize} Header={H} D={D.shape}')
         write_csv(fmetanetx_sanitize, H, D)
@@ -180,7 +178,7 @@ if __name__ == "__main__":
                 continue
             D[I] = [smi, sig1, sig2, sig3, sig4, fp]
             i, I = i + 1, I + 1
-            if I == max_dataset_size:
+            if I == args.parameters_max_dataset_size_int:
                 break
         D = np.asarray(list(D.values()))
         print("Number of smiles", len(D))
