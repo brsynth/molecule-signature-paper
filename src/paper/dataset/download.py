@@ -94,10 +94,10 @@ if __name__ == "__main__":
         "--parameters-radius-int", default=2, type=int, help="Radius of the signature"
     )
     parser.add_argument(
-        "--parameters-valid-percent-float", default=5, type=float, help="Size of the validation dataset (%)"
+        "--parameters-valid-percent-float", default=10, type=float, help="Size of the validation dataset (%)"
     )
     parser.add_argument(
-        "--parameters-test-percent-float", default=5, type=float, help="Size of the test dataset (%)"
+        "--parameters-test-percent-float", default=10, type=float, help="Size of the test dataset (%)"
     )
     args = parser.parse_args()
 
