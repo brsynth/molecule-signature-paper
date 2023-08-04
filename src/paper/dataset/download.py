@@ -163,6 +163,17 @@ if __name__ == "__main__":
         D, i = {}, 0
         for I in range(len(Smiles)):
             sig1, sig2, sig3, sig4, mol, smi, fp = filter(Smiles[i], radius=args.parameters_radius_int)
+            # TD WARNING: some smiles are filtered out but it should objectively not be the case
+            #          because they are valid smiles and they are not too big, and they don't
+            #          look like they are too complex or weird.
+            # Examples:
+            #   COc1cc(O)c(N(O)=O)c(O)c1O
+            #   CCCCc1nc2ccccc2[nH]1
+            #   NC(O)(O)Cc1c[nH]c2cc(O)c(O)cc12
+            #   C[As](O)(S)=S
+            #   ON(=O)CCO
+            #   O[Cr](=O)(=O)O[Cr](O)(=O)=O
+            #   ...
             if sig1 == "" or sig2 == "" or sig3 == "" or sig4 == "":
                 print(Smiles[i])
                 i += 1
