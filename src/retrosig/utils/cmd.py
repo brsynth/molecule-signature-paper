@@ -1,10 +1,7 @@
 import hashlib
 import logging
 import subprocess
-import sys
 from typing import List
-from urllib.request import Request, urlopen
-
 from urllib.request import Request, urlopen
 
 
