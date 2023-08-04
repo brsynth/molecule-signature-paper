@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.0](https://github.com/brsynth/retrosig/tree/0.1.0) (2023-07-27)
+
+[Full Changelog](https://github.com/brsynth/retrosig/compare/0.0.1...0.1.0)
+
 ## [0.0.1](https://github.com/brsynth/retrosig/tree/0.0.1) (2023-07-27)
 
 [Full Changelog](https://github.com/brsynth/retrosig/compare/bb2f0a9cda89308dac2696d9918414a8f794f7f5...0.0.1)
