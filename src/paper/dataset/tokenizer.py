@@ -199,7 +199,7 @@ if __name__ == "__main__":
         # SMILES - SIG
         df_pretokenized[["SMILES", "SIG"]].to_csv(
             os.path.join(
-                args.output_directory_str, PAIRS_DIR, f"sig.smiles.{type_}.txt"
+                args.output_directory_str, PAIRS_DIR, f"sig.smiles.{type_}"
             ),
             sep="\t",
             index=False,
@@ -208,7 +208,7 @@ if __name__ == "__main__":
         # SIG - ECFP4
         df_pretokenized[["SIG", "ECFP4"]].to_csv(
             os.path.join(
-                args.output_directory_str, PAIRS_DIR, f"ecfp4.sig.{type_}.txt"
+                args.output_directory_str, PAIRS_DIR, f"ecfp4.sig.{type_}"
             ),
             sep="\t",
             index=False,
@@ -217,7 +217,7 @@ if __name__ == "__main__":
         # SMILES - ECFP4
         df_pretokenized[["SMILES", "ECFP4"]].to_csv(
             os.path.join(
-                args.output_directory_str, PAIRS_DIR, f"ecfp4.smiles.{type_}.txt"
+                args.output_directory_str, PAIRS_DIR, f"ecfp4.smiles.{type_}"
             ),
             sep="\t",
             index=False,
