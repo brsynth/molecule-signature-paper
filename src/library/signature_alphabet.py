@@ -15,33 +15,42 @@ from library.imports import *
 # Alphabet callable object
 ###############################################################################
 
-class AlphabetObject:
+class SignatureAlphabet:
     def __init__(self, 
                  radius=2,
                  nBits=0,
                  neighbors=False, 
-                 split=False, 
+                 splitcomponent=False, 
                  useRange=False, 
                  isomericSmiles=False, 
                  formalCharge=True, 
                  atomMapping=False, 
-                 kekuleSmiles= True, 
+                 kekuleSmiles=False, 
                  allHsExplicit=False, 
                  maxvalence=4,
                  Dict={}):
         self.filename=''
         self.radius=radius # radius signatures are computed
-        self.nBits=nBits # the number of bits in Morgan vector (defaut 0 = no vector)
-        self.neighbors=neighbors # when True signature is computed on neighbors with radius-1
-        self.split=split # when True the signature is computed for each molecule within a smiles string
-        self.useRange=useRange # when True the signature is computed from 0 to radius 
-        self.isomericSmiles=isomericSmiles # include information about stereochemistry
-        self.formalCharge=formalCharge # Remove charges on atom when False. Defaults to False
-        self.atomMapping=atomMapping # atoRemove atom mapping when False
-        self.kekuleSmiles=kekuleSmiles # if true, H are added
-        self.allHsExplicit=allHsExplicit # if true, all H  will be explicitly in signatures
+        # the number of bits in Morgan vector (defaut 0 = no vector)
+        self.nBits=nBits 
+        # when True signature is computed on neighbors with radius-1
+        self.neighbors=neighbors
+        # when True the signature is computed for each molecule 
+        self.splitcomponent=splitcomponent 
+        # when True the signature is computed from 0 to radius
+        self.useRange=useRange 
+        # include information about stereochemistry
+        self.isomericSmiles=isomericSmiles 
+        # Remove charges on atom when False. Defaults to False
+        self.formalCharge=formalCharge
+        # Remove atom mapping when False
+        self.atomMapping=atomMapping 
+        self.kekuleSmiles=kekuleSmiles
+        # if true, all H  will be explicitly in signatures
+        self.allHsExplicit=allHsExplicit
         self.maxvalence=maxvalence # for all atoms
-        self.Dict=Dict # the alphabet dictionary keys = atom signature, values = index
+        # the alphabet dictionary keys = atom signature, values = index
+        self.Dict=Dict 
         
     def fill(self, Smiles, verbose=False):
         # Fill signature dictionary
@@ -50,7 +59,7 @@ class AlphabetObject:
         Dict = set()
         start_time = time.time()
         for i in range(len(Smiles)):  
-            signature, _ = SignatureFromSmiles(Smiles[i], self, verbose=verbose)
+            signature, _, _ = SignatureFromSmiles(Smiles[i], self, verbose=verbose)
             if len(signature) == 0:
                 print(f'WARNING no signature for molecule {i} {Smiles[i]}')
                 continue  
@@ -60,8 +69,8 @@ class AlphabetObject:
             if verbose:
                 if i % 1000 == 0:
                     print(f'... processing alphabet iteration: {i} \
-                          size: {len(list(Dict))} \
-                          time: {(time.time()-start_time)}')
+size: {len(list(Dict))} \
+time: {(time.time()-start_time)}')
                     start_time = time.time()
         self.Dict = VectorToDic(list(Dict))
 
@@ -72,7 +81,7 @@ class AlphabetObject:
                             radius=self.radius,
                             nBits=self.nBits,
                             neighbors=self.neighbors,
-                            split=self.split,
+                            splitcomponent=self.splitcomponent,
                             useRange=self.useRange,
                             isomericSmiles=self.isomericSmiles,
                             formalCharge=self.formalCharge,
@@ -87,7 +96,7 @@ class AlphabetObject:
         print(f'radius: {self.radius}')
         print(f'nBits: {self.nBits}')
         print(f'neighbors: {self.neighbors}')
-        print(f'split: {self.split}')
+        print(f'splitcomponent: {self.splitcomponent}')
         print(f'useRange:{self.useRange}')
         print(f'isomericSmiles: {self.isomericSmiles}')
         print(f'formalCharge: {self.formalCharge}')
@@ -101,7 +110,7 @@ def LoadAlphabet(filename, verbose=False):
     from library.utils import VectorToDic
     filename = filename+'.npz' if filename.find('.npz') == -1 else filename
     load = np.load(filename, allow_pickle=True)
-    Alphabet=AlphabetObject()
+    Alphabet=SignatureAlphabet()
     Alphabet.filename=filename
     Alphabet.Dict = VectorToDic(load['Dict'])
     # Flags to compute signatures
@@ -109,7 +118,7 @@ def LoadAlphabet(filename, verbose=False):
     Alphabet.nBits=int(load['nBits'])
     Alphabet.maxvalence=int(load['maxvalence'])
     Alphabet.neighbors=bool(load['neighbors'])
-    Alphabet.split=bool(load['split'])
+    Alphabet.splitcomponent=bool(load['splitcomponent'])
     Alphabet.useRange=bool(load['useRange'])
     Alphabet.isomericSmiles=bool(load['isomericSmiles'])
     Alphabet.formalCharge=bool(load['formalCharge'])
@@ -121,7 +130,7 @@ def LoadAlphabet(filename, verbose=False):
     return Alphabet
 
 ###############################################################################
-# Signature as a vector provided an alphabet
+# Signature utilities
 ###############################################################################
 
 def SignatureStringToVector(signature, Dict, verbose=False):
@@ -165,53 +174,95 @@ def SignatureVectorToString(sigV, Dict, verbose=False):
             sig = A[int(i)] if sig == '' else sig + ' ' + A[i]
     return sig
 
+def GetSignatureInfo(sig, Alphabet=None, unique=False, verbose=False):
+# Callable function
+# ARGUMENTS:
+# sig: a signature cf. signature.py for signature format 
+# Alphabet: cf. SignatureAlphabet object
+# unique: a flag indicating if the atom signature list 
+#         must contain only unique atom signatures
+# RETURNS:
+# AS: an array of atom signature
+# NAS, Deg: the occurence nbr (degree) of each atom signature
+
+    if Alphabet != None:
+        sig = SignatureVectorToString(sigV, Alphabet.Dict, verbose=verbose)
+    LAS = sig.split(' ')
+    LAS.sort()
+    AS = list(set(LAS)) if unique else LAS
+    AS.sort()
+    AS = np.asarray(AS)
+    N = AS.shape[0] # nbr of atoms 
+    NAS, Deg, M = {}, {}, 0
+    for i in range(N):
+        NAS[i] = LAS.count(AS[i]) if unique else 1
+        Deg[i] = len(AS[i].split('.'))-1
+        M = M + Deg[i]
+    Ncycle = int(M/2-N+1)
+    NAS = np.asarray(list(NAS.values()))    
+    Deg = np.asarray(list(Deg.values()))
+
+    if verbose:
+        print(f'Nbr atoms, bonds, Cycle, {N}, {int(M/2)}, {Ncycle}')
+        print(f'LAS, {len(AS)}')
+        for i in range(len(LAS)):
+            print(f'- {i}: {LAS[i]}')
+        print(f'Deg {Deg}, {len(Deg)}')
+        print(f'NAS, {NAS}, {len(NAS)}')
+
+    return AS, NAS, Deg
+
 ###############################################################################
 # Signature string or vector computed from smiles
 ###############################################################################
 
-def SignatureFromSmiles(smiles, Alphabet, 
-                        string=True, verbose=False):
+def SignatureFromSmiles(smiles, Alphabet, string=True, verbose=False):
 # Callable function
-# Get a sanatized signature vector for the provided smiles
+# Get a sanitized signature vector for the provided smiles
 # A local routine to make sure all signatures are standard
 # ARGUMENTS:
 # smiles: a smiles string (can contain several molecuel spareted by '.'
 # string: return a sring when True else return a vector
-# Alphabet: the Alphabet of atom signature used to compute signature vector
+# Alphabet: cf. SignatureAlphabet object
 # RETURNS:
 # molecule: an array of RDKit molecule 
-# signature: the signature string (string=True) or vector
+# signature: the signature string or vector, 
+#            the molecule and the corresponding smiles
 
-    from library.signature import SanatizeMolecule
-    from library.signature import GetMoleculeSignature
 
-    S = smiles.split('.') if Alphabet.split else [smiles]
-    signature, temp, molecule = '', [], []
+    from library.signature import SanitizeMolecule, GetMoleculeSignature
+
+    S = smiles.split('.') if Alphabet.splitcomponent else [smiles]
+    signature, temp, molecule, smiles = '', [], [], ''
     for i in range(len(S)):
         mol = Chem.MolFromSmiles(S[i])
-        mol = SanatizeMolecule(mol, 
-                               isomericSmiles=Alphabet.isomericSmiles, 
-                               formalCharge=Alphabet.formalCharge,
-                               atomMapping=Alphabet.atomMapping,
-                               verbose=verbose)
+        mol, smi = SanitizeMolecule(mol, 
+                                    kekuleSmiles=Alphabet.kekuleSmiles,
+                                    allHsExplicit=Alphabet.allHsExplicit,
+                                    isomericSmiles=Alphabet.isomericSmiles,
+                                    formalCharge=Alphabet.formalCharge,
+                                    atomMapping=Alphabet.atomMapping,
+                                    verbose=verbose)
+        if mol == None:
+            continue
         sig = GetMoleculeSignature(mol,
                                    radius=Alphabet.radius,
-                                   nBits=Alphabet.nBits,
                                    neighbors=Alphabet.neighbors,
+                                   nBits=Alphabet.nBits,
                                    useRange=Alphabet.useRange,
                                    isomericSmiles=Alphabet.isomericSmiles,
-                                   kekuleSmiles=Alphabet.kekuleSmiles,
                                    allHsExplicit=Alphabet.allHsExplicit,
                                    verbose=verbose)
         if sig != '':
             temp.append(sig)
             molecule.append(mol)
+            smiles = f'{smiles}.{smi}' if len(smiles) else smi
         
     if len(temp) < 1:
         if string == False and Alphabet.Dict != {}:
-            return [], molecule
+            return [], molecule, ''
         else:
-            return '', molecule
+            return '', molecule, ''
     
     temp = sorted(temp)
     signature = ' . '.join(sig for sig in temp) 
@@ -219,29 +270,33 @@ def SignatureFromSmiles(smiles, Alphabet,
     if string == False and Alphabet.Dict != {}:
         signature = SignatureStringToVector(signature, Alphabet.Dict, 
                                             verbose=verbose)
-    return signature, molecule
 
+    return signature, molecule, smiles
 
 ###############################################################################
 # Morgan Vector of a signature 
 ###############################################################################
 
-def MorganBitFromSignature(sa, Alphabet, verbose=False):
+def MorganVectorString(morgan):
+    s = ''
+    for i in range(len(morgan)):
+        if morgan[i]:
+            s = f'{i}:{morgan[i]}' if s == '' else s + f', {i}:{morgan[i]}'
+    return s
+
+def MorganBitFromSignature(sa, verbose=False):
 # Callable function
 # Get the Morgan bit for an atom signature
 # ARGUMENTS:
 # sa : atom signature (string)
-# Alphabet: the alphabet of atom signatures
 # RETURNS:
 # The Morgan bit
 
-    if Alphabet.Dict == {}:
-        print(f'Error Empty Alphabet')
-        sys.exit('Error') 
-    if Alphabet.nBits == 0:
-        print(f'Error signature does not include Morgan bits')
-        sys.exit('Error')       
-    return int(sa.split(',')[2])
+    if len(sa.split(',')) == 0:
+        if verbose:
+            print(f'Error signature does not include Morgan bits')
+        return -1
+    return int(sa.split(',')[0])
 
 def MorganVectorFromSignature(signature, Alphabet, verbose=False):
 # Callable function
@@ -250,17 +305,15 @@ def MorganVectorFromSignature(signature, Alphabet, verbose=False):
 # signature of molecule (string)
 # Alphabet: the alphabet of atom signatures
 # RETURNS:
-# A Morgan vector of size nBit
+# A Morgan vector of size nBits
 
-    MorganVector = np.zeros(Alphabet.nBits)
-    if Alphabet.Dict == {}:
-        print(f'Error Empty Alphabet')
-        sys.exit('Error') 
-    if Alphabet.nBits == 0:
-        print(f'Error signature does not include Morgan bits')
-        sys.exit('Error')       
+    MorganVector = np.zeros(Alphabet.nBits) 
     for sa in signature.split(' '): # separate atom signatures
-        mbit = MorganBitFromSignature(sa, Alphabet, verbose=verbose)
+        mbit = MorganBitFromSignature(sa, verbose=verbose)
+        if mbit < 0:
+            if verbose:
+                print(f'Error signature does not include Morgan bits')
+            return MorganVector
         MorganVector[mbit] += 1
             
     return MorganVector
@@ -274,7 +327,6 @@ def SignatureAlphabetFromMorganBit(MorganBit, Alphabet, verbose=False):
 # RETURNS:
 # A list of signature having the provided Morgan bit
 
-    from library.signature import SanatizeMolecule
     from library.signature import GetMoleculeSignature
 
     Signatures = []
@@ -285,7 +337,7 @@ def SignatureAlphabetFromMorganBit(MorganBit, Alphabet, verbose=False):
         print(f'WARNING MorganBit {MorganBit} exceeds nBits {Alphabet.nBits}')
         return Signatures
     for sig in Alphabet.Dict.keys():
-        mbit = int(sig.split(',')[2])
+        mbit = int(sig.split(',')[0])
         if mbit == MorganBit:
             Signatures.append(sig)
     

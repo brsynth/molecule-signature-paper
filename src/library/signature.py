@@ -9,28 +9,30 @@
 # is represented by a rooted SMILES string (the root is the atom laleled 1)
 #
 # Below are format examples for the oxygen atom in phenol with radius = 2
-# (and nBits=2048 Morgan Fingerprint size when using neighbor=True)
 #  - neighbor = False, userange = False
 #    C:C(:C)[OH:1]
 #    here the root is the oxygen atom labeled 1: [OH:1] 
 #  - neighbor = False, userange = True
 #    [O:1]&C[OH:1]&C:C(:C)[OH:1] 
 #    same as above but for signature of radius 0 to 2 separated by '&'
-#  - neighbor = True, userange = False
-#    2,8,91,C[OH:1].SINGLE|2,6,176,C:[C:1](:C)O
+#  - neighbor = True, userange = False, nBits=0
+#    C[OH:1].SINGLE|C:[C:1](:C)O
 #    here the signature is computed for the root and its neighbors
 #    for radius-1, root and neighbors are separated by '.'
-#    2 is the radius, 8 stands for oxygen the radius-1 signature is C[OH:1], 
-#    91 is the Morgan bit of oxygen (for radius=2 and nBits=2048).
 #    The oxygen atom is linked by a SINGLE bond to
-#    a carbon of signature 2,6,176,C:[C:1](:C)O 
-#    (2=radius, 6=carbon, 176=Morgan bit)
-#  - neighbor = True, userange = True
-#    2,8,91,[O:1]&C[OH:1].SINGLE|2,6,176,[C:1]&C:[C:1](:C)O
+#    a carbon of signature C:[C:1](:C)O 
+#  - neighbor = True, userange = False, nBits=2048
+#    91,C[OH:1].SINGLE|176,C:[C:1](:C)O
+#    here the signature is computed for the root and its neighbors
+#    for radius-1, root and neighbors are separated by '.'
+#    91 is the Morgan bit of oxygen. The oxygen atom is linked by a SINGLE bond to
+#    a carbon of signature 176,C:[C:1](:C)O (176=Morgan bit)
+#  - neighbor = True, userange = True, nBits=2048
+#    91,[O:1]&C[OH:1].SINGLE|176,[C:1]&C:[C:1](:C)O
 #    same as above but for signature of radius 0 to radius-1=1 separated by '&'
 #
 # Authors: Jean-loup Faulon jfaulon@gmail.com
-# Jan 2023 modified June 2023
+# Jan 2023 modified July 2023
 ###############################################################################
 
 from library.imports import *
@@ -66,49 +68,6 @@ def SignatureBondType(bt='UNSPECIFIED'):
     return BondType[bt]
 
 ###############################################################################
-# Sanatize callable function
-###############################################################################
-
-def SanatizeMolecule(mol, 
-                     isomericSmiles=False, 
-                     formalCharge=False, 
-                     atomMapping=False,
-                     verbose= False):
-# Callable function
-# ARGUMENTS:
-# mol: the molecule in rdkit format
-# isomericSmiles: (optional) include information about stereochemistry. 
-# formalCharge: (optional) Remove charges on atom when False. 
-# atomMapping: (optional) Remove atom mapping when False. 
-# allHsExplicit: (optional) if true, H are added.
-# RETURNS:
-# The sanatized molecule 
-
-    mol = Chem.RemoveHs(mol)
-    try:
-        mol = Chem.rdmolops.AddHs(mol)
-    except:
-        if verbose:
-            print(f'WARNING: molecule cannot be sanatized (add hydrogen)')
-        return None, ''
-    
-    if not isomericSmiles:
-        try:
-            Chem.RemoveStereochemistry(mol)
-        except:
-            if verbose:
-                print(f'WARNING: molecule cannot be sanatized (stereochemistry)')
-            return None, ''
-
-    if not formalCharge:
-        [a.SetFormalCharge(0) for a in mol.GetAtoms()]
-        
-    if not atomMapping:
-        [a.SetAtomMapNum(0) for a in mol.GetAtoms()]
-
-    return mol
-
-###############################################################################
 # signature as a string
 ###############################################################################
 
@@ -116,7 +75,6 @@ def AtomSignature(atm,
                   radius=2,
                   useRange=False,
                   isomericSmiles=False,
-                  kekuleSmiles=False,
                   allHsExplicit=False,
                   verbose=False):
 # Local function
@@ -144,7 +102,6 @@ def AtomSignature(atm,
                                  radius=rad,
                                  useRange=False,
                                  isomericSmiles=isomericSmiles,
-                                 kekuleSmiles=kekuleSmiles,
                                  allHsExplicit=allHsExplicit,
                                  verbose=verbose)
             if len(signature) > 0:
@@ -180,7 +137,7 @@ def AtomSignature(atm,
                                               atomsToUse,bondsToUse=env,
                                               rootedAtAtom=atmidx,
                                               isomericSmiles=isomericSmiles,
-                                              kekuleSmiles=kekuleSmiles,
+                                              kekuleSmiles=True,
                                               canonical=True,
                                               allBondsExplicit=True,
                                               allHsExplicit=allHsExplicit)
@@ -188,26 +145,28 @@ def AtomSignature(atm,
         # but does not do the job properly.
         # To overcome the issue the atom is mapped to 1, and the smiles 
         # is canonicalized via Chem.MolToSmiles
-        signature = Chem.MolFromSmiles(signature)
+        signature = Chem.MolFromSmiles(signature)            
         if allHsExplicit:
             signature = Chem.rdmolops.AddHs(signature)
         signature = Chem.MolToSmiles(signature)
+        if verbose == 2:
+            print(f'signature for {atm.GetIdx()}: {signature}')
+
     except:
         if verbose:
-            print(f'WARNING cannot compute atom signature for: \n\
-                  molecule {mol} atom num: {atmidx} {atm.GetSymbol()} radius: {radius}') 
+            print(f'WARNING cannot compute atom signature for: \
+atom num: {atmidx} {atm.GetSymbol()} radius: {radius}') 
         signature =  ''
     atm.SetAtomMapNum(0)
         
     return signature
 
 def GetAtomSignature(atm,
-                     Codes=[],
+                     morgan=[],
                      radius=2,
                      neighbors=False,
                      useRange=False,
                      isomericSmiles=False,
-                     kekuleSmiles=False, 
                      allHsExplicit=False,
                      verbose=False):
 # Local function
@@ -227,26 +186,28 @@ def GetAtomSignature(atm,
     # We compute atom signature for atm
     signature = AtomSignature(atm, radius=radius, useRange=useRange,
                         isomericSmiles=isomericSmiles,
-                        kekuleSmiles=kekuleSmiles,
                         allHsExplicit=allHsExplicit,
                         verbose=verbose)
-    if neighbors == False or signature == '' or len(Codes) == 0:
+    if signature == '':
+        return ''
+    if len(morgan):
+        signature = str(int(morgan[atm.GetIdx()])) + ',' + signature
+    if neighbors == False:
         return signature
     
     # We compute atom signatures for all neighbors
-    signature = str(Codes[atm.GetIdx()]) + ',' + signature
     mol = atm.GetOwningMol()
     atmset = atm.GetNeighbors() 
     sig_neighbors, temp_sig = '', []
     for a in atmset:
         s = AtomSignature(a, radius=radius, useRange=useRange,
                           isomericSmiles=isomericSmiles,
-                          kekuleSmiles=kekuleSmiles,
                           allHsExplicit=allHsExplicit,
                           verbose=verbose)
         if s != '': 
             bond = mol.GetBondBetweenAtoms(atm.GetIdx(),a.GetIdx())
-            s = str(Codes[a.GetIdx()]) + ',' + s
+            if len(morgan):
+                s = str(int(morgan[a.GetIdx()])) + ',' + s
             s = str(bond.GetBondType()) + '|' + s
             temp_sig.append(s)
             
@@ -262,9 +223,76 @@ def GetAtomSignature(atm,
 # Signature Callable functions
 ###############################################################################
 
+def SanitizeMolecule(mol, 
+                     kekuleSmiles=False,
+                     allHsExplicit=False,
+                     isomericSmiles=False,
+                     formalCharge=False,
+                     atomMapping=False,
+                     verbose=False):
+# Callable function
+# ARGUMENTS:
+# mol: a RDkit mol object
+# kekuleSmiles: if True remove aromaticity.  
+# allHsExplicit: if true, all H counts will be explicitly 
+#                indicated in the output SMILES.
+# isomericSmiles: include information about stereochemistry  
+# formalCharge: if False remove charges
+# atomMapping: if False remove atom map numbers
+#
+# RETURNS:
+# The sanitized molecule and the corresponding smiles
+
+    try: 
+        Chem.SanitizeMol(mol)
+    except:
+        if verbose: 
+            print(f'WARNING SANITIZATION: molecule cannot be sanitized')
+        return None, ''
+
+    if kekuleSmiles:    
+        try:
+            Chem.Kekulize(mol)
+        except:
+            if verbose:
+                print(f'WARNING SANITIZATION: molecule cannot be kekularized')
+            return None, ''
+
+    try:
+        mol = Chem.RemoveHs(mol)
+    except:
+        if verbose:
+            print(f'WARNING SANITIZATION: hydrogen cannot be removed)')
+        return None, ''
+
+    if allHsExplicit:    
+        try:
+            mol = Chem.rdmolops.AddHs(mol)
+        except:
+            if verbose:
+                print(f'WARNING SANITIZATION: hydrogen cannot be added)')
+            return None, ''
+    
+    if isomericSmiles == False:
+        try:
+            Chem.RemoveStereochemistry(mol)
+        except:
+            if verbose:
+                print(f'WARNING SANITIZATION: stereochemistry cannot be removed')
+            return None, ''
+
+    if formalCharge == False:
+        [a.SetFormalCharge(0) for a in mol.GetAtoms()]
+        
+    if atomMapping == False:
+        [a.SetAtomMapNum(0) for a in mol.GetAtoms()]
+        
+    smi = Chem.MolToSmiles(mol)
+    
+    return mol, smi
+
 def GetMoleculeSignature(mol, radius=2, nBits=0, neighbors=False,
                          useRange=False, isomericSmiles=False,
-                         kekuleSmiles=False, 
                          allHsExplicit=False,
                          verbose=False):
 # Callable function
@@ -278,9 +306,7 @@ def GetMoleculeSignature(mol, radius=2, nBits=0, neighbors=False,
 # UseRange: (optional) , when useRange is True the signature is computed 
 # from 0 to radius 
 # isomericSmiles: (optional) include information about stereochemistry 
-#                 in the SMILES. 
-# kekuleSmiles: (optional) use the Kekule form (no aromatic bonds) 
-#               in the SMILES. 
+#                 in the SMILES.  
 # allHsExplicit: (optional) if true, all H counts will be explicitly 
 #                indicated in the output SMILES.
 #
@@ -289,29 +315,23 @@ def GetMoleculeSignature(mol, radius=2, nBits=0, neighbors=False,
 # order and separated by ' '
 # see GetAtomSignature for atom signatures format
 
-    signature, temp_signature = '', []
+    signature, temp_signature, morgan = '', [], []
     
     # First get radius and Morgan bits for all atoms 
-    bitInfo = {}
-    nB = 2048 if nBits == 0 else nBits
-    fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius=radius,
-                                               nBits=nB, 
+    if nBits:
+        bitInfo = {}
+        fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius=radius,
+                                               nBits=nBits, 
                                                bitInfo=bitInfo,
                                                useChirality=isomericSmiles,
                                                useFeatures=True)
-    Radius = [-1] * mol.GetNumAtoms()
-    Morgan = [-1] * mol.GetNumAtoms()
-    Codes =  [] 
-    for bit, info in bitInfo.items():
-        for atmidx, rad in info:
-            if rad > Radius[atmidx]:
-                Radius[atmidx] = rad
-                Morgan[atmidx] = bit
-    for i in range(len(Radius)):
-        atm = mol.GetAtomWithIdx(i)
-        code = str(int(Radius[i])) + ',' + str(atm.GetAtomicNum())
-        code = code + ',' + str(Morgan[i]) if nBits > 0 else code
-        Codes.append(code)
+        Radius = -np.ones(mol.GetNumAtoms())
+        morgan = np.zeros(mol.GetNumAtoms())
+        for bit, info in bitInfo.items():
+            for atmidx, rad in info:
+                if rad > Radius[atmidx]:
+                    Radius[atmidx] = rad
+                    morgan[atmidx] = bit
     
     # We compoute atom signatures for all atoms
     for atm in mol.GetAtoms():
@@ -320,12 +340,11 @@ def GetMoleculeSignature(mol, radius=2, nBits=0, neighbors=False,
 
         # We compute atom signature for atm
         sig = GetAtomSignature(atm,
-                               Codes=Codes,
+                               morgan=morgan,
                                radius=radius,
                                neighbors=neighbors,
                                useRange=useRange,
                                isomericSmiles=isomericSmiles,
-                               kekuleSmiles=kekuleSmiles,
                                allHsExplicit=allHsExplicit,
                                verbose=verbose)
         if sig != '':

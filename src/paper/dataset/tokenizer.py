@@ -1,0 +1,225 @@
+import argparse
+import os
+import re
+from typing import Generator
+
+import pandas as pd
+import sentencepiece as spm
+
+# Define the default path for the produced files
+OUTPUT_DIR = os.path.join(os.getcwd(), "data")
+SPM_DIR = "spm"  # Tokenizer directory
+TMP_DIR = "tmp"  # Temporary directory
+PAIRS_DIR = "pairs"  # tgt-src pairs directory
+
+
+class PreTokenizer(object):
+    REGEX_ATOMS = re.compile(
+        "(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\\\|\/|:|~|@|\?|>|\*|\$|\%[0-9]{2}|[0-9])"
+    )
+    REGEX_SMILES = re.compile(
+        "(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\\\|\/|:|~|@|\?|>|\*|\$|\%[0-9]{2}|[0-9])"
+    )
+
+    @classmethod
+    def build_signature(cls, signature: str) -> Generator:
+        token_specification = [
+            ("FINGERPRINT", r"(\d+,)*"),
+            ("ATOMS", r"[\w=:\d\[\]\(\)]+"),
+            (
+                "BOUND",
+                r"UNSPECIFIED|SINGLE|DOUBLE|TRIPLEQUADRUPLE|QUINTUPLE|HEXTUPLE|ONEANDAHALF|TWOANDAHALF|THREEANDAHALF|FOURANDAHALF|FIVEANDAHALF|AROMATI|IONIC|HYDROGEN|THREECENTER|DATIVEONE|DATIVE|DATIVEL|DATIVER|OTHER|ZERO",
+            ),
+            ("SPACER", r"[\s\.\|]"),
+        ]
+        tok_regex = "|".join("(?P<%s>%s)" % pair for pair in token_specification)
+        for mo in re.finditer(tok_regex, signature):
+            kind = mo.lastgroup
+            value = mo.group()
+            tokens = []
+
+            if value == "":
+                continue
+            if kind == "FINGERPRINT":
+                tokens = list(value)
+            elif kind == "ATOMS":
+                tokens = [token for token in cls.REGEX_ATOMS.findall(value)]
+            elif kind == "BOUND":
+                tokens = value  # list(mo.group(1, 2, 3))
+            elif kind == "SPACER":
+                if value == " ":
+                    tokens = ["!"]
+                else:
+                    tokens = value
+            yield tokens
+
+    @classmethod
+    def pretokenize_signature(cls, signature: str, sep: str = " ") -> str:
+        res = []
+        for token in cls.build_signature(signature=signature):
+            res.extend(token)
+        return sep.join(res)
+
+    @classmethod
+    def pretokenize_smiles(cls, smiles: str) -> str:
+        tokens = [token for token in cls.REGEX_SMILES.findall(smiles)]
+        assert smiles == "".join(tokens)
+        return " ".join(tokens)
+
+    @classmethod
+    def pretokenize_ecfp4(cls, ecfp4: str) -> str:
+        """Return indexes of the on-bits in the ECFP4."""
+        on_bits = [i for i in range(len(ecfp4)) if ecfp4[i] == "1"]
+        return " ".join([str(i) for i in on_bits])
+
+
+def count_words(filename: str) -> int:
+    words = set()
+    with open(filename, "r") as ifile:
+        for line in ifile:
+            for word in line.strip().split():
+                words.add(word)
+
+    return len(words)
+
+
+def tokenize(src_file: str, model_prefix: str, vocab_size: int = -1):
+    """Train a SentencePiece tokenizer.
+
+    Parameters
+    ----------
+    src_file : str
+        Path to the source file. Each line is a molecule.
+    model_prefix : str
+        Prefix of the model to be saved.
+    vocab_size : int, optional
+        Size of the vocabulary (default: -1). By default, the vocabulary is
+        not limited in size, which means that all the tokens in the source
+        file will be in the vocabulary.
+    """
+    if vocab_size == -1:
+        vocab_size = count_words(src_file) + 4  # +4 for the special tokens
+
+    spm.SentencePieceTrainer.Train(
+        input=src_file,
+        model_prefix=model_prefix,
+        vocab_size=vocab_size,
+        model_type="word",
+        character_coverage=1.0,
+        pad_id=0,
+        bos_id=1,
+        eos_id=2,
+        unk_id=3,
+    )
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Tokenize datasets.")
+    parser.add_argument(
+        "--input-directory-str",
+        required=True,
+        help="Path of the input directory where to find train, test and valid datasets (CSV files). Files are expected to be named dataset.train.csv, dataset.test.csv and dataset.valid.csv.",
+    )
+    parser.add_argument(
+        "--output-directory-str",
+        default=OUTPUT_DIR,
+        help=f"Path of the output directory. Default: {OUTPUT_DIR}",
+    )
+
+    args = parser.parse_args()
+
+    # Collect files
+    input_files = []
+    for file in os.listdir(args.input_directory_str):
+        if re.match(r"dataset.(train|test|valid).csv", file):
+            input_files.append(os.path.join(args.input_directory_str, file))
+
+    # Initialize output directories
+    os.makedirs(args.output_directory_str, exist_ok=True)
+    os.makedirs(os.path.join(args.output_directory_str, TMP_DIR), exist_ok=True)
+    os.makedirs(os.path.join(args.output_directory_str, SPM_DIR), exist_ok=True)
+    os.makedirs(os.path.join(args.output_directory_str, PAIRS_DIR), exist_ok=True)
+
+    # Build vocabularies
+    #
+    # For building the vocabularies, we concatenate all the datasets together.
+    df = pd.DataFrame()
+    for file in input_files:
+        df = pd.concat([df, pd.read_csv(file)])
+    df_pretokenized = pd.DataFrame()
+    # SMILES
+    df_pretokenized["SMILES"] = df["SMILES"].apply(PreTokenizer.pretokenize_smiles)
+    df_pretokenized["SMILES"].to_csv(
+        os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
+        index=False,
+        header=False,
+    )
+    tokenize(
+        src_file=os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
+        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "smiles"),
+    )
+    # SIG
+    df_pretokenized["SIG"] = df["SIG"].apply(PreTokenizer.pretokenize_signature)
+    df_pretokenized["SIG"].to_csv(
+        os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
+        index=False,
+        header=False,
+    )
+    tokenize(
+        src_file=os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
+        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "sig"),
+    )
+    # ECFP4
+    df_pretokenized["ECFP4"] = df["ECFP4"].apply(PreTokenizer.pretokenize_ecfp4)
+    df_pretokenized["ECFP4"].to_csv(
+        os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
+        index=False,
+        header=False,
+    )
+    tokenize(
+        src_file=os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
+        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "ecfp4"),
+    )
+    os.remove(os.path.join(args.output_directory_str, TMP_DIR, "src.txt"))
+
+    # Build target-source pairs
+    #
+    # This is useful for the training of the models.
+    #
+    # For each dataset (train, test, valid), we build files containing the (target, source) pairs.
+    # Each row contains one couple {target format}\t{source format}, e.g.: {smiles}\t{signature}
+    for file in input_files:
+        pattern = re.compile(r"dataset\.(?P<type>train|test|valid)\.csv")
+        type_ = pattern.search(file).group("type")
+        df = pd.read_csv(file)
+        df_pretokenized = pd.DataFrame()
+        df_pretokenized["SMILES"] = df["SMILES"].apply(PreTokenizer.pretokenize_smiles)
+        df_pretokenized["SIG"] = df["SIG"].apply(PreTokenizer.pretokenize_signature)
+        df_pretokenized["ECFP4"] = df["ECFP4"].apply(PreTokenizer.pretokenize_ecfp4)
+        # SMILES - SIG
+        df_pretokenized[["SMILES", "SIG"]].to_csv(
+            os.path.join(
+                args.output_directory_str, PAIRS_DIR, f"sig.smiles.{type_}"
+            ),
+            sep="\t",
+            index=False,
+            header=False,
+        )
+        # SIG - ECFP4
+        df_pretokenized[["SIG", "ECFP4"]].to_csv(
+            os.path.join(
+                args.output_directory_str, PAIRS_DIR, f"ecfp4.sig.{type_}"
+            ),
+            sep="\t",
+            index=False,
+            header=False,
+        )
+        # SMILES - ECFP4
+        df_pretokenized[["SMILES", "ECFP4"]].to_csv(
+            os.path.join(
+                args.output_directory_str, PAIRS_DIR, f"ecfp4.smiles.{type_}"
+            ),
+            sep="\t",
+            index=False,
+            header=False,
+        )
