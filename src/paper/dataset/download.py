@@ -116,7 +116,7 @@ if __name__ == "__main__":
     fdataset_train = os.path.join(args.output_directory_str, "dataset.train")
     fdataset_valid = os.path.join(args.output_directory_str, "dataset.valid")
     fdataset_test = os.path.join(args.output_directory_str, "dataset.test")
-    falphabet = os.path.join(args.output_directory_str, "alphabet.npz")
+    falphabet = os.path.join(args.output_directory_str, "sig_alphabet.npz")
 
     # Create output directory
     if not os.path.isdir(args.output_directory_str):
@@ -184,6 +184,7 @@ if __name__ == "__main__":
     ):
         H, D = read_csv(fdataset)
         np.random.shuffle(D)
+
         Smiles = np.asarray(list(set(D[:, 1])))
 
         total_size = D.shape[0]
@@ -191,9 +192,9 @@ if __name__ == "__main__":
         test_size = round(args.parameters_test_percent_float * total_size / 100.0)
         train_size = total_size - valid_size - test_size
         print("Total size:", total_size, "Train size:", train_size, "Valid size:", valid_size, "Test size:", test_size)
-        train_data = D[:train_size]
-        valid_data = D[train_size: train_size+valid_size]
-        test_data = D[train_size+valid_size:]
+        train_data = D[: train_size]
+        valid_data = D[train_size: train_size + valid_size]
+        test_data = D[train_size + valid_size:]
         print(D.shape[0], train_data.shape[0], valid_data.shape[0], test_data.shape[0])
         assert train_data.shape[0] + valid_data.shape[0] + test_data.shape[0] == D.shape[0]
         assert train_data.shape[0] == train_size
@@ -208,10 +209,8 @@ if __name__ == "__main__":
         df_test.to_csv(fdataset_test+".csv", index=False)
 
     # Alphabet Signature
-    print("Build Alphabet")
+    print("Build Signature alphabet")
     df = pd.read_csv(fdataset+".csv")
-    # Smiles = np.asarray(list(set(D[:, 0])))
-    # print(Smiles)
     Alphabet = SignatureAlphabet(
         radius=args.parameters_radius_int, nBits=0, neighbors=False, allHsExplicit=False
     )
