@@ -4,17 +4,16 @@ import argparse
 import os
 import sys
 
+import numpy as np
 import pandas as pd
-from library.imports import *
-from library.utils import read_tsv, read_txt, write_csv
-from library.signature import SanitizeMolecule
-
-from library.utils import read_tsv, read_txt, read_csv, write_csv
-from library.signature_alphabet import SignatureAlphabet
-from library.signature_alphabet import SignatureFromSmiles, GetSignatureInfo
-
-from retrosig.utils import cmd
+from rdkit import Chem
 from rdkit.Chem import AllChem
+
+from library.imports import *
+from library.signature import SanitizeMolecule
+from library.signature_alphabet import SignatureAlphabet, SignatureFromSmiles
+from library.utils import read_csv, read_tsv, write_csv
+from retrosig.utils import cmd
 
 
 def sanitize(data, MaxMolecularWeight: int = 500, size: float = float("inf")):
@@ -162,11 +161,11 @@ if __name__ == "__main__":
         print(H, D.shape[0])
         Smiles = np.asarray(list(set(D[:, 1])))
         print(f"Number of smiles: {len(Smiles)}")
-        #np.random.shuffle(Smiles)
+        # np.random.shuffle(Smiles)
 
         # Get to business
         H = ["SMILES", "SIG", "SIG-NEIGH", "SIG-NBIT", "SIG-NEIGH-NBIT", "ECFP4"]
-        D, i= {}, 0
+        D, i = {}, 0
         for I in range(len(Smiles)):
             sig1, sig2, sig3, sig4, mol, smi, fp = filter(Smiles[i], radius=args.parameters_radius_int)
             if sig1 == "" or sig2 == "" or sig3 == "" or sig4 == "":
@@ -191,7 +190,7 @@ if __name__ == "__main__":
         valid_size = round(args.parameters_valid_percent_float * total_size / 100.0)
         test_size = round(args.parameters_test_percent_float * total_size / 100.0)
         train_size = total_size - valid_size - test_size
-        print("Total size:", total_size, "Train size:", train_size, "Valid size:", valid_size, "Test size:" , test_size)
+        print("Total size:", total_size, "Train size:", train_size, "Valid size:", valid_size, "Test size:", test_size)
         train_data = D[:train_size]
         valid_data = D[train_size: train_size+valid_size]
         test_data = D[train_size+valid_size:]
@@ -200,7 +199,7 @@ if __name__ == "__main__":
         assert train_data.shape[0] == train_size
         assert valid_data.shape[0] == valid_size
         assert test_data.shape[0] == test_size
-        
+
         df_train = pd.DataFrame(data=train_data, columns=H)
         df_train.to_csv(fdataset_train+".csv", index=False)
         df_valid = pd.DataFrame(data=valid_data, columns=H)
@@ -211,8 +210,8 @@ if __name__ == "__main__":
     # Alphabet Signature
     print("Build Alphabet")
     df = pd.read_csv(fdataset+".csv")
-    #Smiles = np.asarray(list(set(D[:, 0])))
-    #print(Smiles)
+    # Smiles = np.asarray(list(set(D[:, 0])))
+    # print(Smiles)
     Alphabet = SignatureAlphabet(
         radius=args.parameters_radius_int, nBits=0, neighbors=False, allHsExplicit=False
     )
