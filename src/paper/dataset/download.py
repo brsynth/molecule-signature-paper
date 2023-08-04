@@ -122,6 +122,10 @@ if __name__ == "__main__":
     fdataset_test = os.path.join(args.output_directory_str, "dataset.test")
     falphabet = os.path.join(args.output_directory_str, "alphabet.npz")
 
+    # Create output directory
+    if not os.path.isdir(args.output_directory_str):
+        os.makedirs(args.output_directory_str)
+
     # Get metanetx
     if not os.path.isfile(fmetanetx):
         print("Download metanetx compound")
