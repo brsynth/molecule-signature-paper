@@ -145,7 +145,6 @@ if __name__ == "__main__":
         H, D = read_tsv(fmetanetx)
         H = ["ID", "SMILES"]
         D = D[:, [0, 8]]
-        # np.random.shuffle(D)  # TD: why?
         print(f"size={D.shape[0]}")
         D = sanitize(D, max_molecular_weight, max_dataset_size)
         # f'{filename}_weight_{str(MaxMolecularWeight)}'
@@ -158,7 +157,6 @@ if __name__ == "__main__":
         print(H, D.shape[0])
         Smiles = np.asarray(list(set(D[:, 1])))
         print(f"Number of smiles: {len(Smiles)}")
-        # np.random.shuffle(Smiles)
 
         # Get to business
         H = ["SMILES", "SIG", "SIG-NEIGH", "SIG-NBIT", "SIG-NEIGH-NBIT", "ECFP4"]
@@ -174,7 +172,6 @@ if __name__ == "__main__":
             if I == max_dataset_size:
                 break
         D = np.asarray(list(D.values()))
-        np.random.shuffle(D)
         print("Number of smiles", len(D))
         df = pd.DataFrame(data=D, columns=H)
         df.to_csv(fdataset+".csv", index=False)
@@ -186,6 +183,7 @@ if __name__ == "__main__":
             not os.path.isfile(fdataset_test + ".csv")
     ):
         H, D = read_csv(fdataset)
+        np.random.shuffle(D)
         Smiles = np.asarray(list(set(D[:, 1])))
 
         total_size = D.shape[0]
