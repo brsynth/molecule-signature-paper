@@ -6,6 +6,11 @@ from typing import Generator
 import pandas as pd
 import sentencepiece as spm
 
+# Define the default path for the produced files
+OUTPUT_DIR = os.path.join(os.getcwd(), "data")
+SPM_DIR = "spm"  # Tokenizer directory
+TMP_DIR = "tmp"  # Temporary directory
+PAIRS_DIR = "pairs"  # tgt-src pairs directory
 
 
 class PreTokenizer(object):
@@ -28,7 +33,6 @@ class PreTokenizer(object):
             ("SPACER", r"[\s\.\|]"),
         ]
         tok_regex = "|".join("(?P<%s>%s)" % pair for pair in token_specification)
-        is_fingerprint = False
         for mo in re.finditer(tok_regex, signature):
             kind = mo.lastgroup
             value = mo.group()
@@ -110,40 +114,86 @@ def tokenize(src_file: str, model_prefix: str, vocab_size: int = -1):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input-dataset-csv", required=True, help="Dataset file csv")
-    parser.add_argument("--output-directory-str", required=True, help="Path of the output directory")
+    parser = argparse.ArgumentParser(description="Tokenize datasets.")
+    parser.add_argument("--input-directory-str", required=True, help="Path of the input directory where to find train, test and valid datasets (CSV files). Files are expected to be named dataset.train.csv, dataset.test.csv and dataset.valid.csv.")
+    parser.add_argument("--output-directory-str", default=OUTPUT_DIR, help=f"Path of the output directory. Default: {OUTPUT_DIR}")
 
     args = parser.parse_args()
 
-    outdir = args.output_directory_str
+    # Collect files
+    input_files = []
+    for file in os.listdir(args.input_directory_str):
+        if re.match(r"dataset.(train|test|valid).csv", file):
+            input_files.append(os.path.join(args.input_directory_str, file))
 
-    # Init
-    os.makedirs(outdir, exist_ok=True)
+    # Initialize output directories
+    os.makedirs(args.output_directory_str, exist_ok=True)
+    os.makedirs(os.path.join(args.output_directory_str, TMP_DIR), exist_ok=True)
+    os.makedirs(os.path.join(args.output_directory_str, SPM_DIR), exist_ok=True)
+    os.makedirs(os.path.join(args.output_directory_str, PAIRS_DIR), exist_ok=True)
 
-    # Load
-    df = pd.read_csv(args.input_dataset_csv)
-
-    # Smiles
-    tokens = []
-    for smiles in df["SMILES"]:
-        tokens.append(Tokenizer.tokenize_smiles(smiles=smiles))
-    with open(os.path.join(args.output_directory_str, "smiles.txt"), "w") as fod:
-        fod.write("\n".join(tokens) + "\n")
-
-    # Signature
-    tokens = []
-    for signature in df["SIG"]:
-        tokens.append(Tokenizer.tokenize_signature(signature=signature))
-    with open(os.path.join(args.output_directory_str, "signature.txt"), "w") as fod:
-        fod.write("\n".join(tokens) + "\n")
-    # signature = "1,8,2040,C=[O:1].DOUBLE|2,6,1021,C[C:1](C)=O 2,6,1021,C[C:1](C)=O.DOUBLE|1,8,2040,C=[O:1].SINGLE|2,6,1439,C[CH:1](O)O.SINGLE|2,6,1928,C[CH:1](C)O"
-    # print(Tokenizer.tokenize_signature(signature=signature))
-    
+    # Build vocabularies
+    #
+    # For building the vocabularies, we concatenate all the datasets together.
+    df = pd.DataFrame()
+    for file in input_files:
+        df = pd.concat([df, pd.read_csv(file)])
+    df_pretokenized = pd.DataFrame()
+    # SMILES
+    df_pretokenized["SMILES"] = df["SMILES"].apply(PreTokenizer.pretokenize_smiles)
+    df_pretokenized["SMILES"].to_csv(os.path.join(args.output_directory_str, TMP_DIR, "src.txt"), index=False, header=False)
+    tokenize(
+        src_file=os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
+        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "smiles"),
+    )
+    # SIG
+    df_pretokenized["SIG"] = df["SIG"].apply(PreTokenizer.pretokenize_signature)
+    df_pretokenized["SIG"].to_csv(os.path.join(args.output_directory_str, TMP_DIR, "src.txt"), index=False, header=False)
+    tokenize(
+        src_file=os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
+        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "sig"),
+    )
     # ECFP4
-    tokens = []
-    for ecfp4 in df["ECFP4"]:
-        tokens.append(Tokenizer.tokenize_ecfp4(ecfp4=str(ecfp4)))
-    with open(os.path.join(args.output_directory_str, "ecfp4.txt"), "w") as fod:
-        fod.write("\n".join(tokens) + "\n")
+    df_pretokenized["ECFP4"] = df["ECFP4"].apply(PreTokenizer.pretokenize_ecfp4)
+    df_pretokenized["ECFP4"].to_csv(os.path.join(args.output_directory_str, TMP_DIR, "src.txt"), index=False, header=False)
+    tokenize(
+        src_file=os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
+        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "ecfp4"),
+    )
+    os.remove(os.path.join(args.output_directory_str, TMP_DIR, "src.txt"))
 
+    # Build target-source pairs
+    #
+    # This is useful for the training of the models.
+    #
+    # For each dataset (train, test, valid), we build files containing the (target, source) pairs.
+    # Each row contains one couple {target format}\t{source format}, e.g.: {smiles}\t{signature}
+    for file in input_files:
+        pattern = re.compile(r"dataset\.(?P<type>train|test|valid)\.csv")
+        type_ = pattern.search(file).group("type")
+        df = pd.read_csv(file)
+        df_pretokenized = pd.DataFrame()
+        df_pretokenized["SMILES"] = df["SMILES"].apply(PreTokenizer.pretokenize_smiles)
+        df_pretokenized["SIG"] = df["SIG"].apply(PreTokenizer.pretokenize_signature)
+        df_pretokenized["ECFP4"] = df["ECFP4"].apply(PreTokenizer.pretokenize_ecfp4)
+        # SMILES - SIG
+        df_pretokenized[["SMILES", "SIG"]].to_csv(
+            os.path.join(args.output_directory_str, PAIRS_DIR, f"sig.smiles.{type_}.txt"),
+            sep="\t",
+            index=False,
+            header=False
+        )
+        # SIG - ECFP4
+        df_pretokenized[["SIG", "ECFP4"]].to_csv(
+            os.path.join(args.output_directory_str, PAIRS_DIR, f"ecfp4.sig.{type_}.txt"),
+            sep="\t",
+            index=False,
+            header=False
+        )
+        # SMILES - ECFP4
+        df_pretokenized[["SMILES", "ECFP4"]].to_csv(
+            os.path.join(args.output_directory_str, PAIRS_DIR, f"ecfp4.smiles.{type_}.txt"),
+            sep="\t",
+            index=False,
+            header=False
+        )
