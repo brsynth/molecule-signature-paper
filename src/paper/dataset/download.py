@@ -2,7 +2,6 @@
 
 import argparse
 import os
-import sys
 
 import numpy as np
 import pandas as pd
@@ -16,29 +15,28 @@ from library.utils import read_csv, read_tsv, write_csv
 from retrosig.utils import cmd
 
 
-def sanitize(data, MaxMolecularWeight: int = 500, size: float = float("inf")):
-    # Remove molecules with weight > MaxMolecularWeight
+def sanitize(data, max_molecular_weight: int = 500, size: float = float("inf")) -> np.ndarray:
+    # Remove molecules with weight > max_molecular_weight
     # and with more than one piece. Make sure all molecules
     # are unique.
 
     D, SMI = [], set()
     for i in range(data.shape[0]):
-        ID, smi = data[i, 0], str(data[i, 1])
+        id_, smi = data[i, 0], str(data[i, 1])
+        if i % 100000 == 0:
+            print(f"------- {i} {id_} {smi} {len(smi)}")  # DEBUG
         if smi == "nan":
             continue
-        if i % 100000 == 0:
-            print(f"-------{i} {data[i,0]} {data[i,1]} {len(smi)}")
         if smi.find(".") != -1:
             continue  # not in one piece
         if smi in SMI:
             continue  # aready there
-        if len(smi) > int(MaxMolecularWeight / 5):  # Cheap skip
+        if len(smi) > int(max_molecular_weight / 5):  # Cheap skip
             continue
         mol, smi = SanitizeMolecule(Chem.MolFromSmiles(smi))
-        if mol == None:
+        if mol is None:
             continue
-        mw = Chem.Descriptors.ExactMolWt(mol)
-        if mw > MaxMolecularWeight:
+        if Chem.ExactMolWt(mol) > max_molecular_weight:
             continue
         if smi in SMI:
             continue  # canonical smi aready there
@@ -88,7 +86,7 @@ if __name__ == "__main__":
         help="Max molecular weight",
     )
     parser.add_argument(
-        "--parameters-max-size-int",
+        "--parameters-max-dataset-size-int",
         default=float("inf"),
         type=float,
         help="Max size dataset",
@@ -105,8 +103,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Init
-    MaxMolecularWeight = args.parameters_max_molecular_weight_int
-    size = args.parameters_max_size_int
+    max_molecular_weight = args.parameters_max_molecular_weight_int
+    max_dataset_size = args.parameters_max_dataset_size_int
 
     np.random.seed(seed=args.parameters_seed_int)
 
@@ -150,7 +148,7 @@ if __name__ == "__main__":
         D = D[:, [0, 8]]
         # np.random.shuffle(D)  # TD: why?
         print(f"size={D.shape[0]}")
-        D = sanitize(D, MaxMolecularWeight, size)
+        D = sanitize(D, max_molecular_weight, max_dataset_size)
         # f'{filename}_weight_{str(MaxMolecularWeight)}'
         # print(f'File={filename_metanetx_sanitize} Header={H} D={D.shape}')
         write_csv(fmetanetx_sanitize, H, D)
@@ -174,7 +172,7 @@ if __name__ == "__main__":
                 continue
             D[I] = [smi, sig1, sig2, sig3, sig4, fp]
             i, I = i + 1, I + 1
-            if I == size:
+            if I == max_dataset_size:
                 break
         D = np.asarray(list(D.values()))
         np.random.shuffle(D)
