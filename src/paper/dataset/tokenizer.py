@@ -63,8 +63,11 @@ class PreTokenizer(object):
         return ' '.join(tokens)
 
     @classmethod
-        return " ".join(list(ecfp4))
     def pretokenize_ecfp4(cls, ecfp4: str) -> str:
+        """Return indexes of the on-bits in the ECFP4."""
+        on_bits = [i for i in range(len(ecfp4)) if ecfp4[i] == "1"]
+        return " ".join([str(i) for i in on_bits])
+
 
 def count_words(filename: str) -> int:
     words = set()
