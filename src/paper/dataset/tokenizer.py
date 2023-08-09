@@ -156,7 +156,7 @@ if __name__ == "__main__":
     )
     tokenize(
         src_file=os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
-        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "smiles"),
+        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "SMILES"),
     )
     # SIG
     df_pretokenized["SIG"] = df["SIG"].apply(PreTokenizer.pretokenize_signature)
@@ -167,7 +167,7 @@ if __name__ == "__main__":
     )
     tokenize(
         src_file=os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
-        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "sig"),
+        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "SIG"),
     )
     # ECFP4
     df_pretokenized["ECFP4"] = df["ECFP4"].apply(PreTokenizer.pretokenize_ecfp4)
@@ -178,7 +178,7 @@ if __name__ == "__main__":
     )
     tokenize(
         src_file=os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
-        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "ecfp4"),
+        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "ECFP4"),
     )
     os.remove(os.path.join(args.output_directory_str, TMP_DIR, "src.txt"))
 
@@ -199,7 +199,7 @@ if __name__ == "__main__":
         # SMILES - SIG
         df_pretokenized[["SMILES", "SIG"]].to_csv(
             os.path.join(
-                args.output_directory_str, PAIRS_DIR, f"sig.smiles.{type_}"
+                args.output_directory_str, PAIRS_DIR, f"SIG.SMILES.{type_}"
             ),
             sep="\t",
             index=False,
@@ -208,7 +208,7 @@ if __name__ == "__main__":
         # SIG - ECFP4
         df_pretokenized[["SIG", "ECFP4"]].to_csv(
             os.path.join(
-                args.output_directory_str, PAIRS_DIR, f"ecfp4.sig.{type_}"
+                args.output_directory_str, PAIRS_DIR, f"ECFP4.SIG.{type_}"
             ),
             sep="\t",
             index=False,
@@ -217,7 +217,7 @@ if __name__ == "__main__":
         # SMILES - ECFP4
         df_pretokenized[["SMILES", "ECFP4"]].to_csv(
             os.path.join(
-                args.output_directory_str, PAIRS_DIR, f"ecfp4.smiles.{type_}"
+                args.output_directory_str, PAIRS_DIR, f"ECFP4.SMILES.{type_}"
             ),
             sep="\t",
             index=False,
