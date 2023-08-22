@@ -72,6 +72,14 @@ class PreTokenizer(object):
         on_bits = [i for i in range(len(ecfp4)) if ecfp4[i] == "1"]
         return " ".join([str(i) for i in on_bits])
 
+    @classmethod
+    def pretokenize_ecfp4_count(cls, ecfp4: str) -> str:
+        """Return indexes of the on-bits in the ECFP4 count."""
+        on_bits = []
+        for i in range(len(ecfp4)):
+            if ecfp4[i] != "0":
+                on_bits.append(int(ecfp4[i]) * i)
+        return " ".join([str(i) for i in on_bits])
 
 def count_words(filename: str) -> int:
     words = set()
@@ -170,7 +178,7 @@ if __name__ == "__main__":
         model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "SIG"),
     )
     # ECFP4
-    df_pretokenized["ECFP4"] = df["ECFP4"].apply(PreTokenizer.pretokenize_ecfp4)
+    df_pretokenized["ECFP4"] = df["ECFP4_COUNT"].apply(PreTokenizer.pretokenize_ecfp4)
     df_pretokenized["ECFP4"].to_csv(
         os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
         index=False,
