@@ -38,7 +38,7 @@ def sanitize(
             continue  # aready there
         if len(smi) > int(max_molecular_weight / 5):  # Cheap skip
             continue
-        mol, smi = SanitizeMolecule(Chem.MolFromSmiles(smi)) #, formalCharge=True)
+        mol, smi = SanitizeMolecule(Chem.MolFromSmiles(smi), formalCharge=True)
         if mol is None:
             continue
         if Chem.Descriptors.ExactMolWt(mol) > max_molecular_weight:
@@ -59,9 +59,9 @@ def filter(smi, radius, verbose=False):
         return "", "", "", "", None, "", "", ""
     if "*" in smi:  #
         return "", "", "", "", None, "", "", ""
-    if "[" in smi:  # cannot process [*] without kekularization
-        if "@" not in smi:
-            return "", "", "", "", None, "", "", ""
+    # if "[" in smi:  # cannot process [*] without kekularization
+    #    if "@" not in smi:
+    #        return "", "", "", "", None, "", "", ""
     smiles = smi
     Alphabet = SignatureAlphabet(neighbors=False, radius=radius, nBits=0)
     sig1, mol, smi = SignatureFromSmiles(smi, Alphabet, verbose=False)
@@ -139,13 +139,14 @@ if __name__ == "__main__":
         os.makedirs(args.output_directory_str)
 
     # Get metanetx
-    if not os.path.isfile(fmetanetx):
+    if not os.path.isfile(fmetanetx_raw + ".tsv"):
         print("Download metanetx compound")
-        if not os.path.isfile(fmetanetx_raw + ".tsv"):
-            cmd.url_download(
-                url="https://www.metanetx.org/ftp/4.4/chem_prop.tsv",
-                path=fmetanetx_raw + ".tsv",
-            )
+        cmd.url_download(
+            url="https://www.metanetx.org/ftp/4.4/chem_prop.tsv",
+            path=fmetanetx_raw + ".tsv",
+        )
+    if not os.path.isfile(fmetanetx + ".tsv"):
+        print("Format metanetx file")
         with open(fmetanetx_raw + ".tsv") as fid, open(fmetanetx + ".tsv", "w") as fod:
             towrite = False
             for line in fid:
