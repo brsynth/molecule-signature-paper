@@ -1,6 +1,7 @@
 import argparse
 import os
 import re
+import shutil
 from typing import Generator
 
 import pandas as pd
@@ -87,7 +88,6 @@ def count_words(filename: str) -> int:
         for line in ifile:
             for word in line.strip().split():
                 words.add(word)
-
     return len(words)
 
 
@@ -108,6 +108,7 @@ def tokenize(src_file: str, model_prefix: str, vocab_size: int = -1):
     if vocab_size == -1:
         vocab_size = count_words(src_file) + 4  # +4 for the special tokens
 
+    print("Vocab size:", vocab_size)
     spm.SentencePieceTrainer.Train(
         input=src_file,
         model_prefix=model_prefix,
@@ -118,6 +119,7 @@ def tokenize(src_file: str, model_prefix: str, vocab_size: int = -1):
         bos_id=1,
         eos_id=2,
         unk_id=3,
+        hard_vocab_limit=False, # Avoid error about vocab size: https://github.com/google/sentencepiece/issues/605
     )
 
 
@@ -178,7 +180,7 @@ if __name__ == "__main__":
         model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "SIG"),
     )
     # ECFP4
-    df_pretokenized["ECFP4"] = df["ECFP4_COUNT"].apply(PreTokenizer.pretokenize_ecfp4)
+    df_pretokenized["ECFP4"] = df["ECFP4_COUNT"].apply(PreTokenizer.pretokenize_ecfp4_count)
     df_pretokenized["ECFP4"].to_csv(
         os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
         index=False,
@@ -188,7 +190,7 @@ if __name__ == "__main__":
         src_file=os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
         model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "ECFP4"),
     )
-    os.remove(os.path.join(args.output_directory_str, TMP_DIR, "src.txt"))
+    shutil.rmtree(os.path.join(args.output_directory_str, TMP_DIR))
 
     # Build target-source pairs
     #
