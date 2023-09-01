@@ -1,5 +1,5 @@
 ###############################################################################
-# This library enumerate molecules from signatures
+# This library enumerate molecules from signatures or morgan vector
 # Signatures must be computed using neighbor = True
 # cf. signature.py for signature format 
 # Authors: Jean-loup Faulon jfaulon@gmail.com
@@ -57,6 +57,8 @@ class MolecularGraph:
         rdedmol = Chem.EditableMol(rdmol)
         for sa in self.SA:
             num, charge = AtomicNumCharge(sa)
+            if num == -1:
+                print(sa)
             rdatom = Chem.Atom(num)
             rdatom.SetFormalCharge (int(charge))
             rdedmol.AddAtom(rdatom)
@@ -343,17 +345,18 @@ def SwapBond(Swap, index, jndex, MG, Sol, Ncc, verbose=False):
     return Sol
     
 ###############################################################################
-# Enumerate Molecules (smiles) From Signature
+# Enumerate Molecules (smiles) from Signature
 ###############################################################################
 
-def EnumerateMoleculeFromSignature(sig, sign, Alphabet,
+def EnumerateMoleculeFromSignature(sig, Alphabet,
+                                   max_nbr_recursion=1.0e7, 
                                    max_nbr_solution=float('inf'),
                                    nbr_component=1,
                                    verbose=False):
 # Callable function
 # Build a molecule matching a provided signature
 # ARGUMENTS:
-# sig, sign: signature and signature with neighbor of a molecule 
+# sig: signature (with neighbor) of a molecule 
 # max_nbr_solution: maximum nbr of solutions returned 
 # max_nbr_recursion: constant used in signature_enumerate
 # nbr_component: nbr connected components
@@ -364,11 +367,9 @@ def EnumerateMoleculeFromSignature(sig, sign, Alphabet,
     from library.signature_alphabet import SignatureFromSmiles
     
     SMIsig, Nsig = set(), 0
-    
-    max_nbr_recursion=1.0e7 # 1.0e7 found after trials
-        
+            
     # Get initial molecule
-    AS, NAS, Deg, A, B, C = GetConstraintMatrices(sign, 
+    AS, NAS, Deg, A, B, C = GetConstraintMatrices(sig, 
                                                   unique=False,
                                                   verbose=verbose)
 
@@ -393,7 +394,8 @@ def EnumerateMoleculeFromSignature(sig, sign, Alphabet,
             break
         Ncc = list(SMI)[0].count('.') + 1 
         if verbose: 
-                print(f'Decrease CC nbr-sol: {len(list(SMI))} Ncc:{Ncc} smi:{list(SMI)[0]}')
+                print(f'Decrease CC nbr-sol:\
+{len(list(SMI))} Ncc:{Ncc} smi:{list(SMI)[0]}')
         if len(SMI) == 0:
             continue
             
@@ -415,5 +417,108 @@ def EnumerateMoleculeFromSignature(sig, sign, Alphabet,
         if sigsmi == sig:
             SMIsig.add(smisig)
 
-    return np.asarray(list(SMIsig))
+    return list(SMIsig)
+
+###############################################################################
+# Enumerate Signatures from Morgan vector
+###############################################################################
+
+def EnumerateSignatureFromMorgan(morgan, Alphabet, timeout=100, 
+                                 binarysolution=False, verbose=False):
+# Callable function
+# Compute all possible signature having a the same Morgan vector 
+# than the provided one. Make use of a Python (sympy) diophantine solver
+# ARGUMENTS:
+# morgan: the Morgan vector
+# binarysolution: when True atom signater do not have occurance numbers
+#                 but are are duplicated. In other words, the OCC vector
+#                 takes only O/1 values
+# RETURNS:
+# The list of signature strings matching the Morgan vector 
+    from library.enumerate_utils import GetConstraintMatrices
+    from library.enumerate_utils import UpdateConstraintMatrices
+    from library.signature_alphabet import SignatureAlphabetFromMorganBit
+    from sympy import Matrix
+    from diophantine import solve
+    import signal
+    
+    def SignatureSet(Sig, Occ):
+        # Return a set of signature string
+        from library.signature_alphabet import SignatureVectorToString
+        S = set()
+        for i in range(Occ.shape[0]):
+            if len(Occ[i]):
+                S.add(SignatureVectorToString(Occ[i], Sig))
+        return S  
+
+    def handle_timeout(sig, frame):
+        raise TimeoutError('took too long')
+        
+    # Get alphabet signatures in AS along with their
+    # minimum and maximum occurence numbers
+    # randomize the list of indices
+    AS, MIN, MAX, IDX, I = {}, {}, {}, {}, 0
+    L = np.arange(morgan.shape[0])
+    np.random.shuffle(L)
+    for i in list(L):
+        if morgan[i] == 0:
+            continue
+        # get all signature in Alphabet having MorganBit = i
+        sig = SignatureAlphabetFromMorganBit(i, Alphabet)
+        if verbose: 
+            print(f'MorganBit {i}:{morgan[i]}, Nbr in alphabet {len(sig)}')
+        (maxi, K) = (1, morgan[i]) if binarysolution else (morgan[i], 1)
+        mini = 0 if len(sig) > 1 else maxi
+        for j in range(len(sig)):
+            for k in range(int(K)):
+                AS[I], MIN[I], MAX[I], IDX[I] = sig[j], mini, maxi, i
+                I += 1
+
+    # Get Matrices for enumeration
+    AS = np.asarray(list(AS.values()))
+    IDX = np.asarray(list(IDX.values()))
+    MIN = np.asarray(list(MIN.values()))
+    MAX = np.asarray(list(MAX.values()))
+    Deg = np.asarray([len(AS[i].split('.'))-1 for i in range(AS.shape[0])])
+    n1 = AS.shape[0]
+    AS, IDX, MIN, MAX, Deg, C = \
+    UpdateConstraintMatrices(AS, IDX, MIN, MAX, Deg, verbose=verbose)
+    n2 = AS.shape[0]
+    if verbose:
+        print(f'AS reduction {n1}, {n2}')
+    
+    # Get matrix A and vector b for diophantine solver
+    A, b, m = C, np.zeros(C.shape[0]), -1
+    for i in range(AS.shape[0]):
+        mi = int(AS[i].split(',')[0]) # morgan bit
+        if mi != m:
+            A = np.concatenate((A, P), axis=0) if m != -1 else A
+            b = np.concatenate((b, [morgan[m]]), axis=0) if m != -1 else b
+            P, m = np.zeros(A.shape[1]).reshape(1,A.shape[1]), mi
+        P[0,i] = 1
+    if verbose: 
+        print(f'A: {A.shape} b: {b.shape}')
+        
+    A, b = Matrix(A.astype(int)), Matrix(b.astype(int))
+    if verbose == 2:
+        print(f'A = {A}\nb = {b}')
+
+    # Solve
+    signal.signal(signal.SIGALRM, handle_timeout)
+    try: 
+        signal.alarm(timeout)
+        OCC = np.asarray(list(solve(A, b)))
+        signal.alarm(0)
+    except TimeoutError as exc: 
+        OCC = np.asarray([])
+        if verbose:
+            print(f'Diophantine solver time ({timeout}) exceeded')
+    if OCC.shape[0] == 0:
+        return []
+    OCC = OCC.reshape(OCC.shape[0], OCC.shape[1])
+    OCC = OCC[:,:AS.shape[0]]
+
+    Sol = SignatureSet(AS, OCC) 
+    
+    return list(Sol)
 
