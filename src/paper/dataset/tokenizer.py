@@ -70,16 +70,12 @@ class PreTokenizer(object):
     @classmethod
     def pretokenize_ecfp4(cls, ecfp4: str) -> str:
         """Return indexes of the on-bits in the ECFP4."""
-        on_bits = [i for i in range(len(ecfp4)) if ecfp4[i] == "1"]
-        return " ".join([str(i) for i in on_bits])
-
-    @classmethod
-    def pretokenize_ecfp4_count(cls, ecfp4: str) -> str:
-        """Return indexes of the on-bits in the ECFP4 count."""
         on_bits = []
-        for i in range(len(ecfp4)):
-            if ecfp4[i] != "0":
-                on_bits.append(int(ecfp4[i]) * i)
+        lecfp4 = ecfp4.split("-")
+        assert len(lecfp4) == 2048
+        for ix, value in enumerate(lecfp4):
+            if value != "0":
+                on_bits.extend([ix] * int(value))
         return " ".join([str(i) for i in on_bits])
 
 def count_words(filename: str) -> int:
@@ -155,7 +151,8 @@ if __name__ == "__main__":
     # For building the vocabularies, we concatenate all the datasets together.
     df = pd.DataFrame()
     for file in input_files:
-        df = pd.concat([df, pd.read_csv(file)])
+        df = pd.concat([df, pd.read_csv(file, index_col=False)])
+    print(df.head())
     df_pretokenized = pd.DataFrame()
     # SMILES
     df_pretokenized["SMILES"] = df["SMILES"].apply(PreTokenizer.pretokenize_smiles)
@@ -180,7 +177,7 @@ if __name__ == "__main__":
         model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "SIG"),
     )
     # ECFP4
-    df_pretokenized["ECFP4"] = df["ECFP4_COUNT"].apply(PreTokenizer.pretokenize_ecfp4_count)
+    df_pretokenized["ECFP4"] = df["ECFP4"].apply(PreTokenizer.pretokenize_ecfp4)
     df_pretokenized["ECFP4"].to_csv(
         os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
         index=False,

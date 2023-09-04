@@ -56,12 +56,9 @@ def sanitize(
 # Compute signature in various format
 def filter(smi, radius, verbose=False):
     if "." in smi:  #
-        return "", "", "", "", None, "", "", ""
+        return "", "", "", "", None, "", ""
     if "*" in smi:  #
-        return "", "", "", "", None, "", "", ""
-    # if "[" in smi:  # cannot process [*] without kekularization
-    #    if "@" not in smi:
-    #        return "", "", "", "", None, "", "", ""
+        return "", "", "", "", None, "", ""
     smiles = smi
     Alphabet = SignatureAlphabet(neighbors=False, radius=radius, nBits=0)
     sig1, mol, smi = SignatureFromSmiles(smi, Alphabet, verbose=False)
@@ -72,13 +69,13 @@ def filter(smi, radius, verbose=False):
     Alphabet = SignatureAlphabet(neighbors=True, radius=radius, nBits=2048)
     sig4, mol, smi = SignatureFromSmiles(smi, Alphabet, verbose=False)
     if sig1 == "" or sig2 == "" or sig3 == "" or sig4 == "":
-        return "", "", "", "", None, "", "", ""
+        return "", "", "", "", None, "", ""
 
     mol = AllChem.MolFromSmiles(smiles)
     fpgen = AllChem.GetMorganGenerator(radius=radius, fpSize=2048)
-    fp = fpgen.GetFingerprint(mol)  # returns a bit vector (value 1 or 0)
-    fp_count = fpgen.GetCountFingerprint(mol)
-    return sig1, sig2, sig3, sig4, mol, smi, "".join([str(x) for x in fp.ToList()]), "".join([str(x) for x in fp_count.ToList()])
+    #fp = fpgen.GetFingerprint(mol)  # returns a bit vector (value 1 or 0)
+    fp = fpgen.GetCountFingerprint(mol)
+    return sig1, sig2, sig3, sig4, mol, smi, "-".join([str(x) for x in fp.ToList()])
 
 
 if __name__ == "__main__":
@@ -180,10 +177,10 @@ if __name__ == "__main__":
         print(f"Number of smiles: {len(Smiles)}")
 
         # Get to business
-        H = ["SMILES", "SIG", "SIG-NEIGH", "SIG-NBIT", "SIG-NEIGH-NBIT", "ECFP4", "ECFP4_COUNT"]
+        H = ["SMILES", "SIG", "SIG-NEIGH", "SIG-NBIT", "SIG-NEIGH-NBIT", "ECFP4"]
         D, i = {}, 0
         for I in range(len(Smiles)):
-            sig1, sig2, sig3, sig4, mol, smi, fp, fp_count = filter(
+            sig1, sig2, sig3, sig4, mol, smi, fp = filter(
                 Smiles[i], radius=args.parameters_radius_int
             )
             # TD WARNING: some smiles are filtered out but it should objectively not be the case
@@ -201,7 +198,7 @@ if __name__ == "__main__":
                 print(Smiles[i])
                 i += 1
                 continue
-            D[I] = [smi, sig1, sig2, sig3, sig4, fp, fp_count]
+            D[I] = [smi, sig1, sig2, sig3, sig4, fp]
             i, I = i + 1, I + 1
             if I == args.parameters_max_dataset_size_int:
                 break
