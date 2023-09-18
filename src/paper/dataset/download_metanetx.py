@@ -73,7 +73,7 @@ def filter(smi, radius, verbose=False):
 
     mol = AllChem.MolFromSmiles(smiles)
     fpgen = AllChem.GetMorganGenerator(radius=radius, fpSize=2048)
-    #fp = fpgen.GetFingerprint(mol)  # returns a bit vector (value 1 or 0)
+    # fp = fpgen.GetFingerprint(mol)  # returns a bit vector (value 1 or 0)
     fp = fpgen.GetCountFingerprint(mol)
     return sig1, sig2, sig3, sig4, mol, smi, "-".join([str(x) for x in fp.ToList()])
 
@@ -129,7 +129,8 @@ if __name__ == "__main__":
     fdataset_valid = os.path.join(args.output_directory_str, "dataset.valid")
     fdataset_test = os.path.join(args.output_directory_str, "dataset.test")
     fdataset_test_small = os.path.join(args.output_directory_str, "dataset.test.small")
-    falphabet = os.path.join(args.output_directory_str, "sig_alphabet.npz")
+    falphabet_sig = os.path.join(args.output_directory_str, "sig.alphabet.npz")
+    falphabet_nbit = os.path.join(args.output_directory_str, "sig_nbit.alphabet.npz")
 
     # Create output directory
     if not os.path.isdir(args.output_directory_str):
@@ -234,9 +235,9 @@ if __name__ == "__main__":
             test_size,
         )
         train_data = D[:train_size]
-        valid_data = D[train_size: train_size + valid_size]
-        test_data = D[train_size + valid_size:]
-        test_small_data = D[train_size + valid_size: train_size + valid_size + 1000]
+        valid_data = D[train_size : train_size + valid_size]
+        test_data = D[train_size + valid_size :]
+        test_small_data = D[train_size + valid_size : train_size + valid_size + 1000]
         print(D.shape[0], train_data.shape[0], valid_data.shape[0], test_data.shape[0])
         assert (
             train_data.shape[0] + valid_data.shape[0] + test_data.shape[0] == D.shape[0]
@@ -255,12 +256,29 @@ if __name__ == "__main__":
         df_test_small = pd.DataFrame(data=test_small_data, columns=H)
         df_test_small.to_csv(fdataset_test_small + ".csv", index=False)
 
-    # Alphabet Signature
-    print("Build Signature alphabet")
-    df = pd.read_csv(fdataset + ".csv")
-    Alphabet = SignatureAlphabet(
-        radius=args.parameters_radius_int, nBits=0, neighbors=False, allHsExplicit=False
-    )
-    Alphabet.fill(df["SMILES"].tolist(), verbose=True)
-    Alphabet.save(falphabet)
-    Alphabet.printout()
+    if not os.path.isfile(falphabet_sig):
+        # Alphabet Signature
+        print("Build Signature alphabet")
+        df = pd.read_csv(fdataset + ".csv")
+        Alphabet = SignatureAlphabet(
+            radius=args.parameters_radius_int,
+            nBits=0,
+            neighbors=False,
+            allHsExplicit=False,
+        )
+        Alphabet.fill(df["SMILES"].tolist(), verbose=True)
+        Alphabet.save(falphabet_sig)
+        Alphabet.printout()
+
+    if not os.path.isfile(falphabet_nbit):
+        print("Build Signature alphabet")
+        df = pd.read_csv(fdataset + ".csv")
+        Alphabet = SignatureAlphabet(
+            radius=args.parameters_radius_int,
+            nBits=2048,
+            neighbors=False,
+            allHsExplicit=False,
+        )
+        Alphabet.fill(df["SMILES"].tolist(), verbose=True)
+        Alphabet.save(falphabet_nbit)
+        Alphabet.printout()
