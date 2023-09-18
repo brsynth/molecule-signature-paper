@@ -2,6 +2,7 @@ import argparse
 import os
 import re
 import shutil
+import tempfile
 from typing import Generator
 
 import pandas as pd
@@ -42,7 +43,7 @@ class PreTokenizer(object):
             if value == "":
                 continue
             if kind == "FINGERPRINT":
-                tokens = list(value)
+                tokens = [value.replace(",", "")] + [","]
             elif kind == "ATOMS":
                 tokens = [token for token in cls.REGEX_ATOMS.findall(value)]
             elif kind == "BOUND":
@@ -142,9 +143,10 @@ if __name__ == "__main__":
 
     # Initialize output directories
     os.makedirs(args.output_directory_str, exist_ok=True)
-    os.makedirs(os.path.join(args.output_directory_str, TMP_DIR), exist_ok=True)
     os.makedirs(os.path.join(args.output_directory_str, SPM_DIR), exist_ok=True)
     os.makedirs(os.path.join(args.output_directory_str, PAIRS_DIR), exist_ok=True)
+
+    tmpfile = tempfile.NamedTemporaryFile().name
 
     # Build vocabularies
     #
@@ -152,42 +154,52 @@ if __name__ == "__main__":
     df = pd.DataFrame()
     for file in input_files:
         df = pd.concat([df, pd.read_csv(file, index_col=False)])
-    print(df.head())
     df_pretokenized = pd.DataFrame()
     # SMILES
     df_pretokenized["SMILES"] = df["SMILES"].apply(PreTokenizer.pretokenize_smiles)
     df_pretokenized["SMILES"].to_csv(
-        os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
+        tmpfile,
         index=False,
         header=False,
     )
     tokenize(
-        src_file=os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
+        src_file=tmpfile,
         model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "SMILES"),
     )
     # SIG
     df_pretokenized["SIG"] = df["SIG"].apply(PreTokenizer.pretokenize_signature)
     df_pretokenized["SIG"].to_csv(
-        os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
+        tmpfile,
         index=False,
         header=False,
     )
     tokenize(
-        src_file=os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
+        src_file=tmpfile,
         model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "SIG"),
     )
+    # SIG-NBIT
+    df_pretokenized["SIG-NBIT"] = df["SIG-NBIT"].apply(PreTokenizer.pretokenize_signature)
+    df_pretokenized["SIG-NBIT"].to_csv(
+        tmpfile,
+        index=False,
+        header=False,
+    )
+    tokenize(
+        src_file=tmpfile,
+        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "SIG-NBIT"),
+    )
+
     # ECFP4
     df_pretokenized["ECFP4"] = df["ECFP4"].apply(PreTokenizer.pretokenize_ecfp4)
     df_pretokenized["ECFP4"].to_csv(
-        os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
+            tmpfile,
         index=False,
         header=False,
     )
     tokenize(
-        src_file=os.path.join(args.output_directory_str, TMP_DIR, "src.txt"),
+        src_file=tmpfile,
         model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "ECFP4"),
     )
-    shutil.rmtree(os.path.join(args.output_directory_str, TMP_DIR))
 
     # Build target-source pairs
     #
@@ -202,11 +214,21 @@ if __name__ == "__main__":
         df_pretokenized = pd.DataFrame()
         df_pretokenized["SMILES"] = df["SMILES"].apply(PreTokenizer.pretokenize_smiles)
         df_pretokenized["SIG"] = df["SIG"].apply(PreTokenizer.pretokenize_signature)
+        df_pretokenized["SIG-NBIT"] = df["SIG-NBIT"].apply(PreTokenizer.pretokenize_signature)
         df_pretokenized["ECFP4"] = df["ECFP4"].apply(PreTokenizer.pretokenize_ecfp4)
         # SMILES - SIG
         df_pretokenized[["SMILES", "SIG"]].to_csv(
             os.path.join(
                 args.output_directory_str, PAIRS_DIR, f"SIG.SMILES.{type_}"
+            ),
+            sep="\t",
+            index=False,
+            header=False,
+        )
+        # SMILES - SIG-NBIT
+        df_pretokenized[["SMILES", "SIG-NBIT"]].to_csv(
+            os.path.join(
+                args.output_directory_str, PAIRS_DIR, f"SIG-NBIT.SMILES.{type_}"
             ),
             sep="\t",
             index=False,
@@ -221,6 +243,16 @@ if __name__ == "__main__":
             index=False,
             header=False,
         )
+        # SIG-NBIT - ECFP4
+        df_pretokenized[["SIG-NBIT", "ECFP4"]].to_csv(
+            os.path.join(
+                args.output_directory_str, PAIRS_DIR, f"ECFP4.SIG-NBIT.{type_}"
+            ),
+            sep="\t",
+            index=False,
+            header=False,
+        )
+
         # SMILES - ECFP4
         df_pretokenized[["SMILES", "ECFP4"]].to_csv(
             os.path.join(
