@@ -249,6 +249,15 @@ if __name__ == "__main__":
             index=False,
             header=False,
         )
+        # SMILES - SIG-NEIGH-NBIT
+        df_pretokenized[["SMILES", "SIG-NEIGH-NBIT"]].to_csv(
+            os.path.join(
+                args.output_directory_str, PAIRS_DIR, f"SIG-NEIGH-NBIT.SMILES.{type_}"
+            ),
+            sep="\t",
+            index=False,
+            header=False,
+        )
         # SIG - ECFP4
         df_pretokenized[["SIG", "ECFP4"]].to_csv(
             os.path.join(
@@ -267,7 +276,15 @@ if __name__ == "__main__":
             index=False,
             header=False,
         )
-
+        # SIG-NEIGH-NBIT - ECFP4
+        df_pretokenized[["SIG-NEIGH-NBIT", "ECFP4"]].to_csv(
+            os.path.join(
+                args.output_directory_str, PAIRS_DIR, f"ECFP4.SIG-NEIGH-NBIT.{type_}"
+            ),
+            sep="\t",
+            index=False,
+            header=False,
+        )
         # SMILES - ECFP4
         df_pretokenized[["SMILES", "ECFP4"]].to_csv(
             os.path.join(
