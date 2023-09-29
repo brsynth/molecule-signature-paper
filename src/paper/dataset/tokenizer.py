@@ -79,6 +79,7 @@ class PreTokenizer(object):
                 on_bits.extend([ix] * int(value))
         return " ".join([str(i) for i in on_bits])
 
+
 def count_words(filename: str) -> int:
     words = set()
     with open(filename, "r") as ifile:
@@ -116,7 +117,7 @@ def tokenize(src_file: str, model_prefix: str, vocab_size: int = -1):
         bos_id=1,
         eos_id=2,
         unk_id=3,
-        hard_vocab_limit=False, # Avoid error about vocab size: https://github.com/google/sentencepiece/issues/605
+        hard_vocab_limit=False,  # Avoid error about vocab size: https://github.com/google/sentencepiece/issues/605
     )
 
 
@@ -149,12 +150,13 @@ if __name__ == "__main__":
     tmpfile = tempfile.NamedTemporaryFile().name
 
     # Build vocabularies
-    #
+
     # For building the vocabularies, we concatenate all the datasets together.
     df = pd.DataFrame()
     for file in input_files:
         df = pd.concat([df, pd.read_csv(file, index_col=False)])
     df_pretokenized = pd.DataFrame()
+
     # SMILES
     df_pretokenized["SMILES"] = df["SMILES"].apply(PreTokenizer.pretokenize_smiles)
     df_pretokenized["SMILES"].to_csv(
@@ -189,10 +191,22 @@ if __name__ == "__main__":
         model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "SIG-NBIT"),
     )
 
+    # SIG-NEIGH-NBIT
+    df_pretokenized["SIG-NEIGH-NBIT"] = df["SIG-NEIGH-NBIT"].apply(PreTokenizer.pretokenize_signature)
+    df_pretokenized["SIG-NEIGH-NBIT"].to_csv(
+        tmpfile,
+        index=False,
+        header=False,
+    )
+    tokenize(
+        src_file=tmpfile,
+        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "SIG-NEIGH-NBIT"),
+    )
+
     # ECFP4
     df_pretokenized["ECFP4"] = df["ECFP4"].apply(PreTokenizer.pretokenize_ecfp4)
     df_pretokenized["ECFP4"].to_csv(
-            tmpfile,
+        tmpfile,
         index=False,
         header=False,
     )
@@ -215,6 +229,7 @@ if __name__ == "__main__":
         df_pretokenized["SMILES"] = df["SMILES"].apply(PreTokenizer.pretokenize_smiles)
         df_pretokenized["SIG"] = df["SIG"].apply(PreTokenizer.pretokenize_signature)
         df_pretokenized["SIG-NBIT"] = df["SIG-NBIT"].apply(PreTokenizer.pretokenize_signature)
+        df_pretokenized["SIG-NEIGH-NBIT"] = df["SIG-NEIGH-NBIT"].apply(PreTokenizer.pretokenize_signature)
         df_pretokenized["ECFP4"] = df["ECFP4"].apply(PreTokenizer.pretokenize_ecfp4)
         # SMILES - SIG
         df_pretokenized[["SMILES", "SIG"]].to_csv(
