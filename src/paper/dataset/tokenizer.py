@@ -27,11 +27,11 @@ class PreTokenizer(object):
     def build_signature(cls, signature: str) -> Generator:
         token_specification = [
             ("FINGERPRINT", r"(\d+,)*"),
-            ("ATOMS", r"[\w=:\d\[\]\(\)]+"),
             (
                 "BOUND",
                 r"UNSPECIFIED|SINGLE|DOUBLE|TRIPLEQUADRUPLE|QUINTUPLE|HEXTUPLE|ONEANDAHALF|TWOANDAHALF|THREEANDAHALF|FOURANDAHALF|FIVEANDAHALF|AROMATI|IONIC|HYDROGEN|THREECENTER|DATIVEONE|DATIVE|DATIVEL|DATIVER|OTHER|ZERO",
             ),
+            ("ATOMS", r"[\w=:\d\[\]\(\)]+"),
             ("SPACER", r"[\s\.\|]"),
         ]
         tok_regex = "|".join("(?P<%s>%s)" % pair for pair in token_specification)
