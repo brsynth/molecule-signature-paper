@@ -1,7 +1,6 @@
 import argparse
 import os
 import re
-import shutil
 import tempfile
 from typing import Generator
 
@@ -126,7 +125,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--input-directory-str",
         required=True,
-        help="Path of the input directory where to find train, test and valid datasets (CSV files). Files are expected to be named dataset.train.csv, dataset.test.csv and dataset.valid.csv.",
+        help=(
+            "Path of the input directory where to find train, test and valid datasets (CSV files). Files are expected "
+            "to be named dataset.train.csv, dataset.test.csv and dataset.valid.csv."
+        ),
     )
     parser.add_argument(
         "--output-directory-str",
@@ -180,7 +182,9 @@ if __name__ == "__main__":
         model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "SIG"),
     )
     # SIG-NBIT
-    df_pretokenized["SIG-NBIT"] = df["SIG-NBIT"].apply(PreTokenizer.pretokenize_signature)
+    df_pretokenized["SIG-NBIT"] = df["SIG-NBIT"].apply(
+        PreTokenizer.pretokenize_signature
+    )
     df_pretokenized["SIG-NBIT"].to_csv(
         tmpfile,
         index=False,
@@ -192,7 +196,9 @@ if __name__ == "__main__":
     )
 
     # SIG-NEIGH-NBIT
-    df_pretokenized["SIG-NEIGH-NBIT"] = df["SIG-NEIGH-NBIT"].apply(PreTokenizer.pretokenize_signature)
+    df_pretokenized["SIG-NEIGH-NBIT"] = df["SIG-NEIGH-NBIT"].apply(
+        PreTokenizer.pretokenize_signature
+    )
     df_pretokenized["SIG-NEIGH-NBIT"].to_csv(
         tmpfile,
         index=False,
@@ -228,14 +234,16 @@ if __name__ == "__main__":
         df_pretokenized = pd.DataFrame()
         df_pretokenized["SMILES"] = df["SMILES"].apply(PreTokenizer.pretokenize_smiles)
         df_pretokenized["SIG"] = df["SIG"].apply(PreTokenizer.pretokenize_signature)
-        df_pretokenized["SIG-NBIT"] = df["SIG-NBIT"].apply(PreTokenizer.pretokenize_signature)
-        df_pretokenized["SIG-NEIGH-NBIT"] = df["SIG-NEIGH-NBIT"].apply(PreTokenizer.pretokenize_signature)
+        df_pretokenized["SIG-NBIT"] = df["SIG-NBIT"].apply(
+            PreTokenizer.pretokenize_signature
+        )
+        df_pretokenized["SIG-NEIGH-NBIT"] = df["SIG-NEIGH-NBIT"].apply(
+            PreTokenizer.pretokenize_signature
+        )
         df_pretokenized["ECFP4"] = df["ECFP4"].apply(PreTokenizer.pretokenize_ecfp4)
         # SMILES - SIG
         df_pretokenized[["SMILES", "SIG"]].to_csv(
-            os.path.join(
-                args.output_directory_str, PAIRS_DIR, f"SIG.SMILES.{type_}"
-            ),
+            os.path.join(args.output_directory_str, PAIRS_DIR, f"SIG.SMILES.{type_}"),
             sep="\t",
             index=False,
             header=False,
@@ -260,9 +268,7 @@ if __name__ == "__main__":
         )
         # SIG - ECFP4
         df_pretokenized[["SIG", "ECFP4"]].to_csv(
-            os.path.join(
-                args.output_directory_str, PAIRS_DIR, f"ECFP4.SIG.{type_}"
-            ),
+            os.path.join(args.output_directory_str, PAIRS_DIR, f"ECFP4.SIG.{type_}"),
             sep="\t",
             index=False,
             header=False,
@@ -287,9 +293,7 @@ if __name__ == "__main__":
         )
         # SMILES - ECFP4
         df_pretokenized[["SMILES", "ECFP4"]].to_csv(
-            os.path.join(
-                args.output_directory_str, PAIRS_DIR, f"ECFP4.SMILES.{type_}"
-            ),
+            os.path.join(args.output_directory_str, PAIRS_DIR, f"ECFP4.SMILES.{type_}"),
             sep="\t",
             index=False,
             header=False,
