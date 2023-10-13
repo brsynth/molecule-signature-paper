@@ -46,7 +46,7 @@ class PreTokenizer(object):
             elif kind == "ATOMS":
                 tokens = [token for token in cls.REGEX_ATOMS.findall(value)]
             elif kind == "BOUND":
-                tokens = value  # list(mo.group(1, 2, 3))
+                tokens = [value]  # list(mo.group(1, 2, 3))
             elif kind == "SPACER":
                 if value == " ":
                     tokens = ["!"]
