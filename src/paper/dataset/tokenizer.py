@@ -101,22 +101,39 @@ def tokenize(src_file: str, model_prefix: str, vocab_size: int = -1):
         Size of the vocabulary (default: -1). By default, the vocabulary is
         not limited in size, which means that all the tokens in the source
         file will be in the vocabulary.
+    model_type : str, optional
+        Type of the model (default: "word"). Possible values are "word" and
+        "unigram".
+    user_defined_symbols : str, optional
+        User defined symbols (default: ""). This is useful to force the
+        inclusion of some tokens in the vocabulary. For example, if you want
+        to force the inclusion of a token "[C]", you can set
+        `user_defined_symbols="[C]"`.
     """
     if vocab_size == -1:
         vocab_size = count_words(src_file) + 4  # +4 for the special tokens
+
+    if model_type in ["word", "char"]:
+        _use_all_vocab = True
+        _hard_vocab_limit = True
+    else:
+        _use_all_vocab = False
+        _hard_vocab_limit = False
 
     print("Vocab size:", vocab_size)
     spm.SentencePieceTrainer.Train(
         input=src_file,
         model_prefix=model_prefix,
         vocab_size=vocab_size,
-        model_type="word",
+        model_type=model_type,
         character_coverage=1.0,
         pad_id=0,
         bos_id=1,
         eos_id=2,
         unk_id=3,
-        hard_vocab_limit=False,  # Avoid error about vocab size: https://github.com/google/sentencepiece/issues/605
+        use_all_vocab=_use_all_vocab,  # important to avoid error about vocab size
+        hard_vocab_limit=_hard_vocab_limit,  # Avoid error about vocab size: https://github.com/google/sentencepiece/issues/605  # noqa E501
+        user_defined_symbols=user_defined_symbols,  # Force inclusion of meaningful tokens
     )
 
 
