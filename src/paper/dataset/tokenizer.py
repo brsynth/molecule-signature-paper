@@ -4,6 +4,7 @@ import re
 import tempfile
 from typing import Generator
 
+import numpy as np
 import pandas as pd
 import sentencepiece as spm
 
@@ -215,150 +216,164 @@ if __name__ == "__main__":
     print("-" * 80)
     print(f"Temporary file: {tmpfile}")
 
-    # Build vocabularies
-
-    # For building the vocabularies, we concatenate all the datasets together.
+    # For building vocabularies, we concatenate all the datasets together.
     df = pd.DataFrame()
     for file in input_files:
         df = pd.concat([df, pd.read_csv(file, index_col=False)])
-    df_pretokenized = pd.DataFrame()
+    # df_pretokenized = pd.DataFrame()
 
-    # SMILES
-    df_pretokenized["SMILES"] = df["SMILES"].apply(PreTokenizer.pretokenize_smiles)
-    df_pretokenized["SMILES"].to_csv(
-        tmpfile,
-        index=False,
-        header=False,
-    )
-    tokenize(
-        src_file=tmpfile,
-        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "SMILES"),
-    )
-    # SIG
-    df_pretokenized["SIG"] = df["SIG"].apply(PreTokenizer.pretokenize_signature)
-    df_pretokenized["SIG"].to_csv(
-        tmpfile,
-        index=False,
-        header=False,
-    )
-    tokenize(
-        src_file=tmpfile,
-        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "SIG"),
-    )
-    # SIG-NBIT
-    df_pretokenized["SIG-NBIT"] = df["SIG-NBIT"].apply(
-        PreTokenizer.pretokenize_signature
-    )
-    df_pretokenized["SIG-NBIT"].to_csv(
-        tmpfile,
-        index=False,
-        header=False,
-    )
-    tokenize(
-        src_file=tmpfile,
-        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "SIG-NBIT"),
-    )
+    if args.model_type_str == "word":
+        # Tokenize using word-based model
+        # NOTICE: word-based model requires pre-tokenization of the input (i.e. splitting the input into words)
+        for depic in args.depictions_list:
+            # Print
+            print("-" * 80)
+            print(f"Tokenizing {depic}")
 
-    # SIG-NEIGH-NBIT
-    df_pretokenized["SIG-NEIGH-NBIT"] = df["SIG-NEIGH-NBIT"].apply(
-        PreTokenizer.pretokenize_signature
-    )
-    df_pretokenized["SIG-NEIGH-NBIT"].to_csv(
-        tmpfile,
-        index=False,
-        header=False,
-    )
-    tokenize(
-        src_file=tmpfile,
-        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "SIG-NEIGH-NBIT"),
-    )
+            # Case by case pre-tokenization
+            if depic == "SMILES":
+                df[depic] = df[depic].apply(PreTokenizer.pretokenize_smiles)
+            elif depic == "ECFP4":
+                df[depic] = df[depic].apply(PreTokenizer.pretokenize_ecfp4)
+            elif depic in ["SIG", "SIG-NBIT", "SIG-NEIGH-NBIT"]:
+                df[depic] = df[depic].apply(PreTokenizer.pretokenize_signature)
+            else:
+                raise ValueError(f"Unknown depic: {depic}")
 
-    # ECFP4
-    df_pretokenized["ECFP4"] = df["ECFP4"].apply(PreTokenizer.pretokenize_ecfp4)
-    df_pretokenized["ECFP4"].to_csv(
-        tmpfile,
-        index=False,
-        header=False,
-    )
-    tokenize(
-        src_file=tmpfile,
-        model_prefix=os.path.join(args.output_directory_str, SPM_DIR, "ECFP4"),
-    )
+            # Write to temporary txt file (one molecule per line)
+            np.savetxt(
+                tmpfile,
+                df[depic].values,
+                fmt="%s",
+            )
 
-    # Build target-source pairs
-    #
-    # This is useful for the training of the models.
-    #
-    # For each dataset (train, test, valid), we build files containing the (target, source) pairs.
-    # Each row contains one couple {target format}\t{source format}, e.g.: {smiles}\t{signature}
-    for file in input_files:
+            # Tokenize
+            tokenize(
+                src_file=tmpfile,
+                model_prefix=os.path.join(args.output_directory_str, SPM_DIR, depic),
+                model_type=args.model_type_str,
+            )
+
+    elif args.model_type_str == "unigram":
+        # Tokenize using unigram-based model
+        # NOTICE: unigram-based model does not require pre-tokenization of the input
+        #   (i.e. the input is tokenized as a whole)
+        # however it requires vocabulary size to be specified
+
+        # Hard coded vocabulary sizes (DEBUG)
+        _VOCAB_SIZE = {
+            "SMILES": 1024,
+            "ECFP4": 2048,
+            "SIG": 4096,
+            "SIG-NBIT": 8192,
+            "SIG-NEIGH-NBIT": 8192,
+        }
+
+        # Hard coded custom tokens (DEBUG)
+        _USER_DEFINED_SYMBOLS = {
+            "SMILES": "",
+            "ECFP4": "",
+            "SIG": "",
+            "SIG-NBIT": "",
+            "SIG-NEIGH-NBIT": ",".join(
+                [
+                    "UNSPECIFIED",
+                    "SINGLE",
+                    "DOUBLE",
+                    "TRIPLEQUADRUPLE",
+                    "QUINTUPLE",
+                    "HEXTUPLE",
+                    "ONEANDAHALF",
+                    "TWOANDAHALF",
+                    "THREEANDAHALF",
+                    "FOURANDAHALF",
+                    "FIVEANDAHALF",
+                    "AROMATIC",
+                    "IONIC",
+                    "HYDROGEN",
+                    "THREECENTER",
+                    "DATIVEONE",
+                    "DATIVE",
+                    "DATIVEL",
+                    "DATIVER",
+                    "OTHER",
+                    "ZERO",
+                ]
+            ),
+        }
+
+        for depic in args.depictions_list:
+            # Get vocabulary size and user defined symbols
+            vocab_size = _VOCAB_SIZE[depic]
+            user_defined_symbols = _USER_DEFINED_SYMBOLS[depic]
+
+            # Print
+            print("-" * 80)
+            print(f"Tokenizing {depic} with vocab size {vocab_size}")
+
+            # Special treatment for ECFP4
+            # Only keep the on-bits, only them bring information
+            if depic == "ECFP4":
+                df[depic] = df[depic].apply(PreTokenizer.pretokenize_ecfp4)
+
+            # Write to temporary txt file (one molecule per line)
+            np.savetxt(
+                tmpfile,
+                df[depic].values,
+                fmt="%s",
+            )
+
+            # Tokenize
+            tokenize(
+                src_file=tmpfile,
+                model_prefix=os.path.join(args.output_directory_str, SPM_DIR, depic),
+                vocab_size=vocab_size,
+                model_type=args.model_type_str,
+                user_defined_symbols=user_defined_symbols,
+            )
+
+    # Build pairs of depictions for training, testing and validation sets
+    for src_depic, tgt_depic in [item.split(".") for item in args.build_pairs_list]:
+        # Print
+        print("-" * 80)
+        print(f"Building tgt-src pairs: {src_depic}.{tgt_depic}")
+
+        # Iterate over datasets
         pattern = re.compile(r"dataset\.(?P<type>train|test|valid)\.csv")
-        type_ = pattern.search(file).group("type")
-        df = pd.read_csv(file)
-        df_pretokenized = pd.DataFrame()
-        df_pretokenized["SMILES"] = df["SMILES"].apply(PreTokenizer.pretokenize_smiles)
-        df_pretokenized["SIG"] = df["SIG"].apply(PreTokenizer.pretokenize_signature)
-        df_pretokenized["SIG-NBIT"] = df["SIG-NBIT"].apply(
-            PreTokenizer.pretokenize_signature
-        )
-        df_pretokenized["SIG-NEIGH-NBIT"] = df["SIG-NEIGH-NBIT"].apply(
-            PreTokenizer.pretokenize_signature
-        )
-        df_pretokenized["ECFP4"] = df["ECFP4"].apply(PreTokenizer.pretokenize_ecfp4)
-        # SMILES - SIG
-        df_pretokenized[["SMILES", "SIG"]].to_csv(
-            os.path.join(args.output_directory_str, PAIRS_DIR, f"SIG.SMILES.{type_}"),
-            sep="\t",
-            index=False,
-            header=False,
-        )
-        # SMILES - SIG-NBIT
-        df_pretokenized[["SMILES", "SIG-NBIT"]].to_csv(
-            os.path.join(
-                args.output_directory_str, PAIRS_DIR, f"SIG-NBIT.SMILES.{type_}"
-            ),
-            sep="\t",
-            index=False,
-            header=False,
-        )
-        # SMILES - SIG-NEIGH-NBIT
-        df_pretokenized[["SMILES", "SIG-NEIGH-NBIT"]].to_csv(
-            os.path.join(
-                args.output_directory_str, PAIRS_DIR, f"SIG-NEIGH-NBIT.SMILES.{type_}"
-            ),
-            sep="\t",
-            index=False,
-            header=False,
-        )
-        # SIG - ECFP4
-        df_pretokenized[["SIG", "ECFP4"]].to_csv(
-            os.path.join(args.output_directory_str, PAIRS_DIR, f"ECFP4.SIG.{type_}"),
-            sep="\t",
-            index=False,
-            header=False,
-        )
-        # SIG-NBIT - ECFP4
-        df_pretokenized[["SIG-NBIT", "ECFP4"]].to_csv(
-            os.path.join(
-                args.output_directory_str, PAIRS_DIR, f"ECFP4.SIG-NBIT.{type_}"
-            ),
-            sep="\t",
-            index=False,
-            header=False,
-        )
-        # SIG-NEIGH-NBIT - ECFP4
-        df_pretokenized[["SIG-NEIGH-NBIT", "ECFP4"]].to_csv(
-            os.path.join(
-                args.output_directory_str, PAIRS_DIR, f"ECFP4.SIG-NEIGH-NBIT.{type_}"
-            ),
-            sep="\t",
-            index=False,
-            header=False,
-        )
-        # SMILES - ECFP4
-        df_pretokenized[["SMILES", "ECFP4"]].to_csv(
-            os.path.join(args.output_directory_str, PAIRS_DIR, f"ECFP4.SMILES.{type_}"),
-            sep="\t",
-            index=False,
-            header=False,
-        )
+        for file in input_files:  # Remember: input_files are datasets of interests
+            type_ = pattern.search(file).group("type")
+
+            # Print dataset
+            print(f"    {type_}")
+
+            # Read
+            df = pd.read_csv(file)
+
+            # Pre-tokenize
+            for depic in [src_depic, tgt_depic]:
+                if depic == "ECFP4":
+                    df[depic] = df[depic].apply(PreTokenizer.pretokenize_ecfp4)
+                elif depic == "SMILES" and args.model_type_str == "word":
+                    df[depic] = df[depic].apply(PreTokenizer.pretokenize_smiles)
+                elif (
+                    depic in ["SIG", "SIG-NBIT", "SIG-NEIGH-NBIT"]
+                    and args.model_type_str == "word"
+                ):
+                    df[depic] = df[depic].apply(PreTokenizer.pretokenize_signature)
+
+            # Write
+            with open(
+                os.path.join(
+                    args.output_directory_str,
+                    PAIRS_DIR,
+                    f"{src_depic}.{tgt_depic}.{type_}",
+                ),
+                "w",
+            ) as ofile:
+                # Using numpy
+                np.savetxt(
+                    ofile,
+                    df[[tgt_depic, src_depic]].values,
+                    fmt="%s",
+                    delimiter="\t",
+                )
