@@ -155,18 +155,31 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # Summarize arguments
+    print("-" * 80)
+    print("Arguments:")
+    for arg in vars(args):
+        print(f"    {arg: <22}: {getattr(args, arg)}")
+
     # Collect files
     input_files = []
     for file in os.listdir(args.input_directory_str):
         if re.match(r"dataset.(train|test|valid).csv", file):
             input_files.append(os.path.join(args.input_directory_str, file))
+    print("-" * 80)
+    print("Input files:")
+    for file in input_files:
+        print(f"    {file}")
 
     # Initialize output directories
     os.makedirs(args.output_directory_str, exist_ok=True)
     os.makedirs(os.path.join(args.output_directory_str, SPM_DIR), exist_ok=True)
     os.makedirs(os.path.join(args.output_directory_str, PAIRS_DIR), exist_ok=True)
 
+    # Temporary file
     tmpfile = tempfile.NamedTemporaryFile().name
+    print("-" * 80)
+    print(f"Temporary file: {tmpfile}")
 
     # Build vocabularies
 
