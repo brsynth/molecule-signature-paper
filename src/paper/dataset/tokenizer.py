@@ -88,7 +88,13 @@ def count_words(filename: str) -> int:
     return len(words)
 
 
-def tokenize(src_file: str, model_prefix: str, vocab_size: int = -1):
+def tokenize(
+    src_file: str,
+    model_prefix: str,
+    vocab_size: int = -1,
+    model_type: str = "word",
+    user_defined_symbols: str = "",
+):
     """Train a SentencePiece tokenizer.
 
     Parameters
@@ -143,14 +149,42 @@ if __name__ == "__main__":
         "--input-directory-str",
         required=True,
         help=(
-            "Path of the input directory where to find train, test and valid datasets (CSV files). Files are expected "
-            "to be named dataset.train.csv, dataset.test.csv and dataset.valid.csv."
+            "Path of the input directory where to find train, test and valid datasets (CSV files). "
+            'Files are expected to be named "dataset.train.csv", "dataset.test.csv" and "dataset.valid.csv".'
         ),
     )
     parser.add_argument(
         "--output-directory-str",
         default=OUTPUT_DIR,
         help=f"Path of the output directory. Default: {OUTPUT_DIR}",
+    )
+
+    parser.add_argument(
+        "--model-type-str",
+        default="word",
+        choices=["word", "unigram"],
+        help=("Model type for the tokenizer. Default: word."),
+    )
+
+    parser.add_argument(
+        "--depictions-list",
+        nargs="+",
+        default=["SMILES", "SIG", "SIG-NBIT", "SIG-NEIGH-NBIT", "ECFP4"],
+        help=(
+            "List of depictions to tokenize. Default: ['SMILES', 'SIG', 'SIG-NBIT', 'SIG-NEIGH-NBIT', 'ECFP4']. "
+            "Note: the depictions must be present in the input files."
+        ),
+    )
+
+    parser.add_argument(
+        "--build-pairs-list",
+        nargs="+",
+        default=["ECFP4.SMILES", "ECFP4.SIG-NEIGH-NBIT", "SIG-NEIGH-NBIT.SMILES"],
+        help=(
+            "List of pairs of depictions to write. Default: ['ECFP4.SMILES', 'ECFP4.SIG-NEIGH-NBIT', "
+            "'SIG-NEIGH-NBIT.SMILES']. "
+            "Note: the depictions must be present in the input files."
+        ),
     )
 
     args = parser.parse_args()
