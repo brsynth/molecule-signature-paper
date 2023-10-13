@@ -43,10 +43,43 @@ python src/paper/dataset/download.py \
 
 ### `tokenizer.py`
 
+Usage
+
+```bash
+$ python src/paper/dataset/tokenizer.py --help
+
+usage: tokenizer.py [-h] --input-directory-str INPUT_DIRECTORY_STR [--output-directory-str OUTPUT_DIRECTORY_STR] [--model-type-str {word,unigram}]
+                    [--depictions-list DEPICTIONS_LIST [DEPICTIONS_LIST ...]] [--build-pairs-list BUILD_PAIRS_LIST [BUILD_PAIRS_LIST ...]]
+
+Tokenize datasets.
+
+options:
+  -h, --help            show this help message and exit
+  --input-directory-str INPUT_DIRECTORY_STR
+                        Path of the input directory where to find train, test and valid datasets (CSV files). Files are expected to be named
+                        "dataset.train.csv", "dataset.test.csv" and "dataset.valid.csv".
+  --output-directory-str OUTPUT_DIRECTORY_STR
+                        Path of the output directory. Default: current directory
+  --model-type-str {word,unigram}
+                        Model type for the tokenizer. Default: word.
+  --depictions-list DEPICTIONS_LIST [DEPICTIONS_LIST ...]
+                        List of depictions to tokenize. Default: ['SMILES', 'SIG', 'SIG-NBIT', 'SIG-NEIGH-NBIT', 'ECFP4']. Note: the depictions must be present
+                        in the input files.
+  --build-pairs-list BUILD_PAIRS_LIST [BUILD_PAIRS_LIST ...]
+                        List of pairs of depictions to write. Default: ['ECFP4.SMILES', 'ECFP4.SIG-NEIGH-NBIT', 'SIG-NEIGH-NBIT.SMILES']. Note: the depictions
+                        must be present in the input files.
+```
+
+Example
+
 ```bash
 python src/paper/dataset/tokenizer.py \
-    --input-directory-str <indir containing dataset.*.csv files> \
-    --output-directory-str <outdir>
+    --input-directory-str data/metanetx/dataset \
+    --output-directory-str data/metanetx/data \
+    --model-type-str word \
+    --depictions-list ECFP4 SIG-NEIGH-NBIT SMILES \
+    --build-pairs-list ECFP4.SMILES ECFP4.SIG-NEIGH-NBIT SIG-NEIGH-NBIT.SMILES \
+    &> tokenizer.log
 ```
 
 ## Build models
