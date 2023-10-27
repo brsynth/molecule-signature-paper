@@ -289,22 +289,22 @@ if __name__ == "__main__":
 
         # Save
         df_train = pd.DataFrame(data=train_data, columns=H)
-        df_train.to_csv(args.path["dataset_train"] + ".csv", index=False)
+        df_train.to_csv(args.paths["dataset_train"] + ".csv", index=False)
         df_valid = pd.DataFrame(data=valid_data, columns=H)
-        df_valid.to_csv(args.path["dataset_valid"] + ".csv", index=False)
+        df_valid.to_csv(args.paths["dataset_valid"] + ".csv", index=False)
         df_test = pd.DataFrame(data=test_data, columns=H)
-        df_test.to_csv(args.path["dataset_test"] + ".csv", index=False)
+        df_test.to_csv(args.paths["dataset_test"] + ".csv", index=False)
         df_test_small = pd.DataFrame(data=test_small_data, columns=H)
-        df_test_small.to_csv(args.path["dataset_test_small"] + ".csv", index=False)
+        df_test_small.to_csv(args.paths["dataset_test_small"] + ".csv", index=False)
 
         print("done")
 
     # Build Signature alphabets -------------------------------------------------
-    if not os.path.isfile(args.path["alphabet_sig"]):
+    if not os.path.isfile(args.paths["alphabet_sig"]):
         # Alphabet Signature
         print("-" * 80)
         print("Building Signature alphabet (no bit, no neighbors)...")
-        df = pd.read_csv(args.path["dataset"] + ".csv")
+        df = pd.read_csv(args.paths["dataset"] + ".csv")
         Alphabet = SignatureAlphabet(
             radius=args.parameters_radius_int,
             nBits=0,
@@ -312,14 +312,14 @@ if __name__ == "__main__":
             allHsExplicit=False,
         )
         Alphabet.fill(df["SMILES"].tolist(), verbose=True)
-        Alphabet.save(args.path["alphabet_sig"])
+        Alphabet.save(args.paths["alphabet_sig"])
         print("Alphabet summary:")
         Alphabet.printout()
 
-    if not os.path.isfile(args.path["alphabet_sig_nbit"]):
+    if not os.path.isfile(args.paths["alphabet_sig_nbit"]):
         print("-" * 80)
         print("Build Signature alphabet (nbit, no neighbors)...")
-        df = pd.read_csv(args.path["dataset"] + ".csv")
+        df = pd.read_csv(args.paths["dataset"] + ".csv")
         Alphabet = SignatureAlphabet(
             radius=args.parameters_radius_int,
             nBits=2048,
@@ -327,14 +327,14 @@ if __name__ == "__main__":
             allHsExplicit=False,
         )
         Alphabet.fill(df["SMILES"].tolist(), verbose=True)
-        Alphabet.save(args.path["alphabet_sig_nbit"])
+        Alphabet.save(args.paths["alphabet_sig_nbit"])
         print("Alphabet summary:")
         Alphabet.printout()
 
-    if not os.path.isfile(args.path["alphabet_sig_neigh_nbit"]):
+    if not os.path.isfile(args.paths["alphabet_sig_neigh_nbit"]):
         print("-" * 80)
         print("Build Signature alphabet (nbit, neighbors)...")
-        df = pd.read_csv(args.path["dataset"] + ".csv")
+        df = pd.read_csv(args.paths["dataset"] + ".csv")
         Alphabet = SignatureAlphabet(
             radius=args.parameters_radius_int,
             nBits=2048,
@@ -342,6 +342,6 @@ if __name__ == "__main__":
             allHsExplicit=False,
         )
         Alphabet.fill(df["SMILES"].tolist(), verbose=True)
-        Alphabet.save(args.path["alphabet_sig_neigh_nbit"])
+        Alphabet.save(args.paths["alphabet_sig_neigh_nbit"])
         print("Alphabet summary:")
         Alphabet.printout()
