@@ -141,6 +141,11 @@ if __name__ == "__main__":
         "alphabet_neigh_nbit": os.path.join(_odir, "sig_neigh_nbit.alphabet.npz"),
     }
 
+    # Print settings ------------------------------------------------------------
+    print("Settings:")
+    [print(f"{i :>15} : {j}") for i, j in vars(args).items()]
+    print("")
+
     # Create output directory ----------------------------------------------------
     if not os.path.isdir(args.output_directory_str):
         os.makedirs(args.output_directory_str)
