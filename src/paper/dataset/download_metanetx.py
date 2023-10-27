@@ -125,19 +125,21 @@ if __name__ == "__main__":
     # Initialize random seed for reproducibility --------------------------------
     np.random.seed(seed=args.parameters_seed_int)
 
-    # Define the path of the produced files
-    fmetanetx_raw = os.path.join(args.output_directory_str, "metanetx.raw.4_4")
-    fmetanetx = os.path.join(args.output_directory_str, "metanetx.4_4")
-    fmetanetx_sanitize = os.path.join(
-        args.output_directory_str, "metanetx.4_4.sanitize"
-    )
-    fdataset = os.path.join(args.output_directory_str, "dataset")
-    fdataset_train = os.path.join(args.output_directory_str, "dataset.train")
-    fdataset_valid = os.path.join(args.output_directory_str, "dataset.valid")
-    fdataset_test = os.path.join(args.output_directory_str, "dataset.test")
-    fdataset_test_small = os.path.join(args.output_directory_str, "dataset.test.small")
-    falphabet_sig = os.path.join(args.output_directory_str, "sig.alphabet.npz")
-    falphabet_nbit = os.path.join(args.output_directory_str, "sig_nbit.alphabet.npz")
+    # Define the path of the produced files -------------------------------------
+    _odir = args.output_directory_str
+    args.paths = {
+        "metanetx_raw": os.path.join(_odir, "metanetx.raw.4_4"),
+        "metanetx": os.path.join(_odir, "metanetx.4_4"),
+        "metanetx_sanitize": os.path.join(_odir, "metanetx.4_4.sanitize"),
+        "dataset": os.path.join(_odir, "dataset"),
+        "dataset_train": os.path.join(_odir, "dataset.train"),
+        "dataset_valid": os.path.join(_odir, "dataset.valid"),
+        "dataset_test": os.path.join(_odir, "dataset.test"),
+        "dataset_test_small": os.path.join(_odir, "dataset.test.small"),
+        "alphabet_sig": os.path.join(_odir, "sig.alphabet.npz"),
+        "alphabet_nbit": os.path.join(_odir, "sig_nbit.alphabet.npz"),
+        "alphabet_neigh_nbit": os.path.join(_odir, "sig_neigh_nbit.alphabet.npz"),
+    }
 
     # Create output directory ----------------------------------------------------
     if not os.path.isdir(args.output_directory_str):
@@ -145,17 +147,19 @@ if __name__ == "__main__":
 
     # Download and sanitize metanetx ---------------------------------------------
     # Get metanetx
-    if not os.path.isfile(fmetanetx_raw + ".tsv"):
+    if not os.path.isfile(args.paths["metanetx_raw"] + ".tsv"):
         print("Download metanetx compound")
         cmd.url_download(
             url="https://www.metanetx.org/ftp/4.4/chem_prop.tsv",
-            path=fmetanetx_raw + ".tsv",
+            path=args.paths["metanetx_raw"] + ".tsv",
         )
-    if not os.path.isfile(fmetanetx + ".tsv"):
 
     # Strip metanetx heading section
+    if not os.path.isfile(args.paths["metanetx"] + ".tsv"):
         print("Format metanetx file")
-        with open(fmetanetx_raw + ".tsv") as fid, open(fmetanetx + ".tsv", "w") as fod:
+        with open(args.paths["metanetx_raw"] + ".tsv") as fid, open(
+            args.paths["metanetx"] + ".tsv", "w"
+        ) as fod:
             towrite = False
             for line in fid:
                 if line.startswith("#ID"):
@@ -163,10 +167,10 @@ if __name__ == "__main__":
                 if towrite:
                     fod.write(line)
 
-    if not os.path.isfile(fmetanetx_sanitize + ".csv"):
     # Sanitize metanetx
+    if not os.path.isfile(args.paths["metanetx_sanitize"] + ".csv"):
         print("Start sanitize")
-        H, D = read_tsv(fmetanetx)
+        H, D = read_tsv(args.paths["metanetx"])
         H = ["ID", "SMILES"]
         D = D[:, [0, 8]]
         print(f"size={D.shape[0]}")
@@ -176,15 +180,15 @@ if __name__ == "__main__":
             args.parameters_max_molecular_weight_int,
             args.parameters_max_dataset_size_int,
         )
-        write_csv(fmetanetx_sanitize, H, D)
+        write_csv(args.paths["metanetx_sanitize"], H, D)
 
-    if not os.path.isfile(fdataset + ".csv"):
-        H, D = read_csv(fmetanetx_sanitize)
     # Create the complete dataset -----------------------------------------------
+    if not os.path.isfile(args.paths["dataset"] + ".csv"):
         # Get the list of SMILES
+        H, D = read_csv(args.paths["metanetx_sanitize"])
         print(H, D.shape[0])
-        Smiles = np.asarray(list(set(D[:, 1])))
-        print(f"Number of smiles: {len(Smiles)}")
+        smiles_arr = np.asarray(list(set(D[:, 1])))
+        print(f"Number of smiles: {len(smiles_arr)}")
 
         # Get to business
         H = ["SMILES", "SIG", "SIG-NEIGH", "SIG-NBIT", "SIG-NEIGH-NBIT", "ECFP4"]
@@ -204,16 +208,16 @@ if __name__ == "__main__":
         D = np.asarray(list(D.values()))
         print("Number of smiles", len(D))
         df = pd.DataFrame(data=D, columns=H)
-        df.to_csv(fdataset + ".csv", index=False)
+        df.to_csv(args.paths["dataset"] + ".csv", index=False)
 
     # Split into train, valid, test
     if (
-        not os.path.isfile(fdataset_train + ".csv")
-        or not os.path.isfile(fdataset_valid + ".csv")
-        or not os.path.isfile(fdataset_test + ".csv")
-        or not os.path.isfile(fdataset_test_small + ".csv")
+        not os.path.isfile(args.paths["dataset_train"] + ".csv")
+        or not os.path.isfile(args.paths["dataset_valid"] + ".csv")
+        or not os.path.isfile(args.paths["dataset_test"] + ".csv")
+        or not os.path.isfile(args.paths["dataset_test_small"] + ".csv")
     ):
-        H, D = read_csv(fdataset)
+        H, D = read_csv(args.paths["dataset"])
         np.random.shuffle(D)
 
         smiles_arr = np.asarray(list(set(D[:, 1])))
@@ -234,9 +238,11 @@ if __name__ == "__main__":
             test_size,
         )
         train_data = D[:train_size]
-        valid_data = D[train_size : train_size + valid_size]
-        test_data = D[train_size + valid_size :]
-        test_small_data = D[train_size + valid_size : train_size + valid_size + 1000]
+        valid_data = D[train_size : train_size + valid_size]  # noqa: E203
+        test_data = D[train_size + valid_size :]  # noqa: E203
+        test_small_data = D[
+            train_size + valid_size : train_size + valid_size + 1000  # noqa: E203
+        ]
         print(D.shape[0], train_data.shape[0], valid_data.shape[0], test_data.shape[0])
         assert (
             train_data.shape[0] + valid_data.shape[0] + test_data.shape[0] == D.shape[0]
@@ -248,19 +254,19 @@ if __name__ == "__main__":
 
         # Save
         df_train = pd.DataFrame(data=train_data, columns=H)
-        df_train.to_csv(fdataset_train + ".csv", index=False)
+        df_train.to_csv(args.path["dataset_train"] + ".csv", index=False)
         df_valid = pd.DataFrame(data=valid_data, columns=H)
-        df_valid.to_csv(fdataset_valid + ".csv", index=False)
+        df_valid.to_csv(args.path["dataset_valid"] + ".csv", index=False)
         df_test = pd.DataFrame(data=test_data, columns=H)
-        df_test.to_csv(fdataset_test + ".csv", index=False)
+        df_test.to_csv(args.path["dataset_test"] + ".csv", index=False)
         df_test_small = pd.DataFrame(data=test_small_data, columns=H)
-        df_test_small.to_csv(fdataset_test_small + ".csv", index=False)
+        df_test_small.to_csv(args.path["dataset_test_small"] + ".csv", index=False)
 
-    if not os.path.isfile(falphabet_sig):
     # Build Signature alphabets -------------------------------------------------
+    if not os.path.isfile(args.path["alphabet_sig"]):
         # Alphabet Signature
-        print("Build Signature alphabet")
-        df = pd.read_csv(fdataset + ".csv")
+        print("Build Signature alphabet (no bit, no neighbors)")
+        df = pd.read_csv(args.path["dataset"] + ".csv")
         Alphabet = SignatureAlphabet(
             radius=args.parameters_radius_int,
             nBits=0,
@@ -268,12 +274,12 @@ if __name__ == "__main__":
             allHsExplicit=False,
         )
         Alphabet.fill(df["SMILES"].tolist(), verbose=True)
-        Alphabet.save(falphabet_sig)
+        Alphabet.save(args.path["alphabet_sig"])
         Alphabet.printout()
 
-    if not os.path.isfile(falphabet_nbit):
-        print("Build Signature alphabet")
-        df = pd.read_csv(fdataset + ".csv")
+    if not os.path.isfile(args.path["alphabet_sig_nbit"]):
+        print("Build Signature alphabet (nbit, no neighbors)")
+        df = pd.read_csv(args.path["dataset"] + ".csv")
         Alphabet = SignatureAlphabet(
             radius=args.parameters_radius_int,
             nBits=2048,
