@@ -287,5 +287,18 @@ if __name__ == "__main__":
             allHsExplicit=False,
         )
         Alphabet.fill(df["SMILES"].tolist(), verbose=True)
-        Alphabet.save(falphabet_nbit)
+        Alphabet.save(args.path["alphabet_sig_nbit"])
+        Alphabet.printout()
+
+    if not os.path.isfile(args.path["alphabet_sig_neigh_nbit"]):
+        print("Build Signature alphabet (nbit, neighbors)")
+        df = pd.read_csv(args.path["dataset"] + ".csv")
+        Alphabet = SignatureAlphabet(
+            radius=args.parameters_radius_int,
+            nBits=2048,
+            neighbors=True,
+            allHsExplicit=False,
+        )
+        Alphabet.fill(df["SMILES"].tolist(), verbose=True)
+        Alphabet.save(args.path["alphabet_sig_neigh_nbit"])
         Alphabet.printout()
