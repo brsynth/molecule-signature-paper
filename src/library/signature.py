@@ -38,10 +38,10 @@
 from library.imports import *
 
 def SignatureBondType(bt='UNSPECIFIED'):
-# Callable function
-# Necessary because RDKit functions
-# GetBondType (string) != Chem.BondType (RDKit object)
-# Must be updated with new RDKit release !!!
+    # Callable function
+    # Necessary because RDKit functions
+    # GetBondType (string) != Chem.BondType (RDKit object)
+    # Must be updated with new RDKit release !!!
     BondType = {
     'UNSPECIFIED': Chem.BondType.UNSPECIFIED,
     'SINGLE':  Chem.BondType.SINGLE,
@@ -77,8 +77,8 @@ def AtomSignature(atm,
                   isomericSmiles=False,
                   allHsExplicit=False,
                   verbose=False):
-# Local function
-# See GetAtomSignature for arguments
+    # Local function
+    # See GetAtomSignature for arguments
 
     signature = ''
     if atm is None:
@@ -169,14 +169,14 @@ def GetAtomSignature(atm,
                      isomericSmiles=False,
                      allHsExplicit=False,
                      verbose=False):
-# Local function
-# ARGUMENTS:
-# cf. GetMoleculeSignature
-#
-# RETURNS:
-# A signature (string) where atom signatures are sorted in lexicographic 
-# order and separated by ' '
-# see GetAtomSignature for atom signatures format
+    # Local function
+    # ARGUMENTS:
+    # cf. GetMoleculeSignature
+    #
+    # RETURNS:
+    # A signature (string) where atom signatures are sorted in lexicographic 
+    # order and separated by ' '
+    # see GetAtomSignature for atom signatures format
 
     signature, temp_signature = '', []
     radius = radius-1 if neighbors else radius
@@ -230,18 +230,18 @@ def SanitizeMolecule(mol,
                      formalCharge=False,
                      atomMapping=False,
                      verbose=False):
-# Callable function
-# ARGUMENTS:
-# mol: a RDkit mol object
-# kekuleSmiles: if True remove aromaticity.  
-# allHsExplicit: if true, all H counts will be explicitly 
-#                indicated in the output SMILES.
-# isomericSmiles: include information about stereochemistry  
-# formalCharge: if False remove charges
-# atomMapping: if False remove atom map numbers
-#
-# RETURNS:
-# The sanitized molecule and the corresponding smiles
+    # Callable function
+    # ARGUMENTS:
+    # mol: a RDkit mol object
+    # kekuleSmiles: if True remove aromaticity.  
+    # allHsExplicit: if true, all H counts will be explicitly 
+    #                indicated in the output SMILES.
+    # isomericSmiles: include information about stereochemistry  
+    # formalCharge: if False remove charges
+    # atomMapping: if False remove atom map numbers
+    #
+    # RETURNS:
+    # The sanitized molecule and the corresponding smiles
 
     try: 
         Chem.SanitizeMol(mol)
@@ -295,25 +295,25 @@ def GetMoleculeSignature(mol, radius=2, nBits=0, neighbors=False,
                          useRange=False, isomericSmiles=False,
                          allHsExplicit=False,
                          verbose=False):
-# Callable function
-# ARGUMENTS:
-# mol: the molecule in rdkit format
-# radius: the raduis of the signature, when radius < 0 the radius is set 
-#         to the size the molecule
-# nBits: number of bits for Morgan bit vector, when = 0 (default)
-#        Morgan bit vector is not computed
-# neighbors: if true radius-1 signature is computed on the neighbors of the atoms
-# UseRange: (optional) , when useRange is True the signature is computed 
-# from 0 to radius 
-# isomericSmiles: (optional) include information about stereochemistry 
-#                 in the SMILES.  
-# allHsExplicit: (optional) if true, all H counts will be explicitly 
-#                indicated in the output SMILES.
-#
-# RETURNS:
-# A signature (string) where atom signatures are sorted in lexicographic 
-# order and separated by ' '
-# see GetAtomSignature for atom signatures format
+    # Callable function
+    # ARGUMENTS:
+    # mol: the molecule in rdkit format
+    # radius: the raduis of the signature, when radius < 0 the radius is set 
+    #         to the size the molecule
+    # nBits: number of bits for Morgan bit vector, when = 0 (default)
+    #        Morgan bit vector is not computed
+    # neighbors: if true radius-1 signature is computed on the neighbors of the atoms
+    # UseRange: (optional) , when useRange is True the signature is computed 
+    # from 0 to radius 
+    # isomericSmiles: (optional) include information about stereochemistry 
+    #                 in the SMILES.  
+    # allHsExplicit: (optional) if true, all H counts will be explicitly 
+    #                indicated in the output SMILES.
+    #
+    # RETURNS:
+    # A signature (string) where atom signatures are sorted in lexicographic 
+    # order and separated by ' '
+    # see GetAtomSignature for atom signatures format
 
     signature, temp_signature, morgan = '', [], []
     
