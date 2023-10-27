@@ -22,3 +22,5 @@ build
 debug
 .tox
 .ipynb_checkpoints
+
+datasets
