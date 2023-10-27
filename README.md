@@ -3,7 +3,7 @@
 ## Install
 
 ```bash
-conda env create -f recipes/worfklow.yaml
+conda env create -f recipes/workflow.yaml
 conda activate retrosig
 pip install --no-deps -e .
 ```
