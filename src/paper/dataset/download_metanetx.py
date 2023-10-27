@@ -28,21 +28,29 @@ def sanitize(
     D, SMI = [], set()
     for i in range(data.shape[0]):
         id_, smi = data[i, 0], str(data[i, 1])
+        # Print progression
         if i % 100000 == 0:
             print(f"------- {i} {id_} {smi} {len(smi)}")  # DEBUG
+        # Skip if not a valid SMILES
         if smi == "nan":
             continue
+        # Skip if SMILES contains has several unconnected components
         if smi.find(".") != -1:
             continue  # not in one piece
+        # Skip if SMILES already in the set
         if smi in SMI:
-            continue  # aready there
-        if len(smi) > int(max_molecular_weight / 5):  # Cheap skip
             continue
+        # # Skip if SMILES is too long (cheap molecular weight check)
+        # if len(smi) > int(max_molecular_weight / 5):  # Cheap skip
+        #     continue
         mol, smi = SanitizeMolecule(Chem.MolFromSmiles(smi), formalCharge=True)
+        # Skip if SMILES is not valid
         if mol is None:
             continue
+        # Skip if too big (expensive molecular weight check)
         if Chem.Descriptors.ExactMolWt(mol) > max_molecular_weight:
             continue
+        # Skip if already in the set
         if smi in SMI:
             continue  # canonical smi aready there
         SMI.add(smi)
@@ -73,7 +81,6 @@ def filter(smi, radius, verbose=False):
 
     mol = AllChem.MolFromSmiles(smiles)
     fpgen = AllChem.GetMorganGenerator(radius=radius, fpSize=2048)
-    # fp = fpgen.GetFingerprint(mol)  # returns a bit vector (value 1 or 0)
     fp = fpgen.GetCountFingerprint(mol)
     return sig1, sig2, sig3, sig4, mol, smi, "-".join([str(x) for x in fp.ToList()])
 
@@ -115,7 +122,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Initialize random seed
+    # Initialize random seed for reproducibility --------------------------------
     np.random.seed(seed=args.parameters_seed_int)
 
     # Define the path of the produced files
@@ -132,10 +139,11 @@ if __name__ == "__main__":
     falphabet_sig = os.path.join(args.output_directory_str, "sig.alphabet.npz")
     falphabet_nbit = os.path.join(args.output_directory_str, "sig_nbit.alphabet.npz")
 
-    # Create output directory
+    # Create output directory ----------------------------------------------------
     if not os.path.isdir(args.output_directory_str):
         os.makedirs(args.output_directory_str)
 
+    # Download and sanitize metanetx ---------------------------------------------
     # Get metanetx
     if not os.path.isfile(fmetanetx_raw + ".tsv"):
         print("Download metanetx compound")
@@ -144,6 +152,8 @@ if __name__ == "__main__":
             path=fmetanetx_raw + ".tsv",
         )
     if not os.path.isfile(fmetanetx + ".tsv"):
+
+    # Strip metanetx heading section
         print("Format metanetx file")
         with open(fmetanetx_raw + ".tsv") as fid, open(fmetanetx + ".tsv", "w") as fod:
             towrite = False
@@ -152,27 +162,26 @@ if __name__ == "__main__":
                     towrite = True
                 if towrite:
                     fod.write(line)
-        # os.remove(fmetanetx_raw+".tsv")  # TD: don't remove otherwise it will be downloaded again
 
-    # Sanitize
     if not os.path.isfile(fmetanetx_sanitize + ".csv"):
+    # Sanitize metanetx
         print("Start sanitize")
         H, D = read_tsv(fmetanetx)
         H = ["ID", "SMILES"]
         D = D[:, [0, 8]]
         print(f"size={D.shape[0]}")
+        # Sanitize and store in numpy array structure
         D = sanitize(
             D,
             args.parameters_max_molecular_weight_int,
             args.parameters_max_dataset_size_int,
         )
-        # f'{filename}_weight_{str(MaxMolecularWeight)}'
-        # print(f'File={filename_metanetx_sanitize} Header={H} D={D.shape}')
         write_csv(fmetanetx_sanitize, H, D)
 
-    # Create Dataset
     if not os.path.isfile(fdataset + ".csv"):
         H, D = read_csv(fmetanetx_sanitize)
+    # Create the complete dataset -----------------------------------------------
+        # Get the list of SMILES
         print(H, D.shape[0])
         Smiles = np.asarray(list(set(D[:, 1])))
         print(f"Number of smiles: {len(Smiles)}")
@@ -180,27 +189,16 @@ if __name__ == "__main__":
         # Get to business
         H = ["SMILES", "SIG", "SIG-NEIGH", "SIG-NBIT", "SIG-NEIGH-NBIT", "ECFP4"]
         D, i = {}, 0
-        for I in range(len(Smiles)):
+        for I in range(len(smiles_arr)):  # noqa: E741
             sig1, sig2, sig3, sig4, mol, smi, fp = filter(
-                Smiles[i], radius=args.parameters_radius_int
+                smiles_arr[i], radius=args.parameters_radius_int
             )
-            # TD WARNING: some smiles are filtered out but it should objectively not be the case
-            #          because they are valid smiles and they are not too big, and they don't
-            #          look like they are too complex or weird.
-            # Examples:
-            #   COc1cc(O)c(N(O)=O)c(O)c1O
-            #   CCCCc1nc2ccccc2[nH]1
-            #   NC(O)(O)Cc1c[nH]c2cc(O)c(O)cc12
-            #   C[As](O)(S)=S
-            #   ON(=O)CCO
-            #   O[Cr](=O)(=O)O[Cr](O)(=O)=O
-            #   ...
             if sig1 == "" or sig2 == "" or sig3 == "" or sig4 == "":
-                print(Smiles[i])
+                print(smiles_arr[i])
                 i += 1
                 continue
             D[I] = [smi, sig1, sig2, sig3, sig4, fp]
-            i, I = i + 1, I + 1
+            i, I = i + 1, I + 1  # noqa: E741
             if I == args.parameters_max_dataset_size_int:
                 break
         D = np.asarray(list(D.values()))
@@ -208,7 +206,7 @@ if __name__ == "__main__":
         df = pd.DataFrame(data=D, columns=H)
         df.to_csv(fdataset + ".csv", index=False)
 
-    # Split Dataset
+    # Split into train, valid, test
     if (
         not os.path.isfile(fdataset_train + ".csv")
         or not os.path.isfile(fdataset_valid + ".csv")
@@ -218,8 +216,9 @@ if __name__ == "__main__":
         H, D = read_csv(fdataset)
         np.random.shuffle(D)
 
-        Smiles = np.asarray(list(set(D[:, 1])))
+        smiles_arr = np.asarray(list(set(D[:, 1])))
 
+        # Split dataset
         total_size = D.shape[0]
         valid_size = round(args.parameters_valid_percent_float * total_size / 100.0)
         test_size = round(args.parameters_test_percent_float * total_size / 100.0)
@@ -247,6 +246,7 @@ if __name__ == "__main__":
         assert test_data.shape[0] == test_size
         assert test_small_data.shape[0] == 1000
 
+        # Save
         df_train = pd.DataFrame(data=train_data, columns=H)
         df_train.to_csv(fdataset_train + ".csv", index=False)
         df_valid = pd.DataFrame(data=valid_data, columns=H)
@@ -257,6 +257,7 @@ if __name__ == "__main__":
         df_test_small.to_csv(fdataset_test_small + ".csv", index=False)
 
     if not os.path.isfile(falphabet_sig):
+    # Build Signature alphabets -------------------------------------------------
         # Alphabet Signature
         print("Build Signature alphabet")
         df = pd.read_csv(fdataset + ".csv")
