@@ -23,4 +23,6 @@ debug
 .tox
 .ipynb_checkpoints
 
-datasets
+datasets*
+*.log
+*.err
