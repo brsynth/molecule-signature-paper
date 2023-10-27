@@ -89,36 +89,51 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--output-directory-str",
+        metavar="PATH",
         default=OUTPUT_DIR,
-        help="Path of the output directory",
+        help=f"Path of the output directory (default: {OUTPUT_DIR})",
     )
-    parser.add_argument("--parameters-seed-int", default=0, type=int, help="Seed")
+    parser.add_argument(
+        "--parameters-seed-int",
+        metavar="SEED",
+        default=0,
+        type=int,
+        help="Seed value for random-related operations (default: 0)",
+    )
     parser.add_argument(
         "--parameters-max-molecular-weight-int",
+        metavar="MW",
         default=500,
         type=int,
-        help="Max molecular weight",
+        help="Max molecular weight (default: 500)",
     )
     parser.add_argument(
         "--parameters-max-dataset-size-int",
+        metavar="SIZE",
         default=float("inf"),
         type=float,
-        help="Max dataset size",
+        help="Max dataset size (default: inf)",
     )
     parser.add_argument(
-        "--parameters-radius-int", default=2, type=int, help="Radius of the signature"
+        "--parameters-radius-int",
+        metavar="RADIUS",
+        default=2,
+        type=int,
+        help="Radius of the signature (default: 2)",
     )
     parser.add_argument(
         "--parameters-valid-percent-float",
+        metavar="PERCENT",
         default=10,
         type=float,
-        help="Size of the validation dataset (%%)",
+        help="Size of the validation dataset (%%, default: 10)",
     )
     parser.add_argument(
         "--parameters-test-percent-float",
+        metavar="PERCENT",
         default=10,
         type=float,
-        help="Size of the test dataset (%%)",
+        help="Size of the test dataset (%%, default: 10)",
     )
     args = parser.parse_args()
 
