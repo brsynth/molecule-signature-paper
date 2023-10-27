@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import AllChem
+from tqdm import tqdm
 
 from library.signature import SanitizeMolecule
 from library.signature_alphabet import SignatureAlphabet, SignatureFromSmiles
@@ -26,7 +27,7 @@ def sanitize(
     # are unique.
 
     D, SMI = [], set()
-    for i in range(data.shape[0]):
+    for i in tqdm(range(data.shape[0])):
         id_, smi = data[i, 0], str(data[i, 1])
         # Print progression
         if i % 100000 == 0:
@@ -157,9 +158,15 @@ if __name__ == "__main__":
     }
 
     # Print settings ------------------------------------------------------------
-    print("Settings:")
-    [print(f"{i :>15} : {j}") for i, j in vars(args).items()]
-    print("")
+    print("Settings", "-" * 71)
+    for i, j in vars(args).items():
+        if i == "paths":
+            print(f"    {i :<35}")
+            for k, l in j.items():
+                print(f"        .{k :<30} : {l}")
+        else:
+            print(f"    {i :<35} : {j}")
+    print("-" * 80, flush=True)
 
     # Create output directory ----------------------------------------------------
     if not os.path.isdir(args.output_directory_str):
@@ -168,15 +175,16 @@ if __name__ == "__main__":
     # Download and sanitize metanetx ---------------------------------------------
     # Get metanetx
     if not os.path.isfile(args.paths["metanetx_raw"] + ".tsv"):
-        print("Download metanetx compound")
+        print("Downloading metanetx compound...", end=" ")
         cmd.url_download(
             url="https://www.metanetx.org/ftp/4.4/chem_prop.tsv",
             path=args.paths["metanetx_raw"] + ".tsv",
         )
+        print("done")
 
     # Strip metanetx heading section
     if not os.path.isfile(args.paths["metanetx"] + ".tsv"):
-        print("Format metanetx file")
+        print("Formating metanetx file...", end=" ")
         with open(args.paths["metanetx_raw"] + ".tsv") as fid, open(
             args.paths["metanetx"] + ".tsv", "w"
         ) as fod:
@@ -186,10 +194,11 @@ if __name__ == "__main__":
                     towrite = True
                 if towrite:
                     fod.write(line)
+        print("done")
 
     # Sanitize metanetx
     if not os.path.isfile(args.paths["metanetx_sanitize"] + ".csv"):
-        print("Start sanitize")
+        print("Sanitizing molecules...")
         H, D = read_tsv(args.paths["metanetx"])
         H = ["ID", "SMILES"]
         D = D[:, [0, 8]]
@@ -204,6 +213,7 @@ if __name__ == "__main__":
 
     # Create the complete dataset -----------------------------------------------
     if not os.path.isfile(args.paths["dataset"] + ".csv"):
+
         # Get the list of SMILES
         H, D = read_csv(args.paths["metanetx_sanitize"])
         print(H, D.shape[0])
@@ -213,7 +223,10 @@ if __name__ == "__main__":
         # Get to business
         H = ["SMILES", "SIG", "SIG-NEIGH", "SIG-NBIT", "SIG-NEIGH-NBIT", "ECFP4"]
         D, i = {}, 0
-        for I in range(len(smiles_arr)):  # noqa: E741
+
+        # Filter and compute signature
+        print("Generating molecular depictions...")
+        for I in tqdm(range(len(smiles_arr))):  # noqa: E741
             sig1, sig2, sig3, sig4, mol, smi, fp = filter(
                 smiles_arr[i], radius=args.parameters_radius_int
             )
@@ -237,6 +250,8 @@ if __name__ == "__main__":
         or not os.path.isfile(args.paths["dataset_test"] + ".csv")
         or not os.path.isfile(args.paths["dataset_test_small"] + ".csv")
     ):
+        print("Splitting dataset...", end=" ")
+
         H, D = read_csv(args.paths["dataset"])
         np.random.shuffle(D)
 
@@ -282,10 +297,13 @@ if __name__ == "__main__":
         df_test_small = pd.DataFrame(data=test_small_data, columns=H)
         df_test_small.to_csv(args.path["dataset_test_small"] + ".csv", index=False)
 
+        print("done")
+
     # Build Signature alphabets -------------------------------------------------
     if not os.path.isfile(args.path["alphabet_sig"]):
         # Alphabet Signature
-        print("Build Signature alphabet (no bit, no neighbors)")
+        print("-" * 80)
+        print("Building Signature alphabet (no bit, no neighbors)...")
         df = pd.read_csv(args.path["dataset"] + ".csv")
         Alphabet = SignatureAlphabet(
             radius=args.parameters_radius_int,
@@ -295,10 +313,12 @@ if __name__ == "__main__":
         )
         Alphabet.fill(df["SMILES"].tolist(), verbose=True)
         Alphabet.save(args.path["alphabet_sig"])
+        print("Alphabet summary:")
         Alphabet.printout()
 
     if not os.path.isfile(args.path["alphabet_sig_nbit"]):
-        print("Build Signature alphabet (nbit, no neighbors)")
+        print("-" * 80)
+        print("Build Signature alphabet (nbit, no neighbors)...")
         df = pd.read_csv(args.path["dataset"] + ".csv")
         Alphabet = SignatureAlphabet(
             radius=args.parameters_radius_int,
@@ -308,10 +328,12 @@ if __name__ == "__main__":
         )
         Alphabet.fill(df["SMILES"].tolist(), verbose=True)
         Alphabet.save(args.path["alphabet_sig_nbit"])
+        print("Alphabet summary:")
         Alphabet.printout()
 
     if not os.path.isfile(args.path["alphabet_sig_neigh_nbit"]):
-        print("Build Signature alphabet (nbit, neighbors)")
+        print("-" * 80)
+        print("Build Signature alphabet (nbit, neighbors)...")
         df = pd.read_csv(args.path["dataset"] + ".csv")
         Alphabet = SignatureAlphabet(
             radius=args.parameters_radius_int,
@@ -321,4 +343,5 @@ if __name__ == "__main__":
         )
         Alphabet.fill(df["SMILES"].tolist(), verbose=True)
         Alphabet.save(args.path["alphabet_sig_neigh_nbit"])
+        print("Alphabet summary:")
         Alphabet.printout()
