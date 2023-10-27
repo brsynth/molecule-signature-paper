@@ -34,11 +34,26 @@ Donwload link (as of 2023/8/4): see `data` folder from the `RetroSig` shared fol
 
 ### `download.py`
 
-```bash
-conda activate retrosig
+See embedded `--help`:
 
-python src/paper/dataset/download.py \
-    --output-directory-str <outdir>
+```bash
+python src/paper/dataset/download_metanetx.py --help
+```
+
+Example :
+
+```bash
+python src/paper/dataset/download_metanetx.py \
+    --output-directory-str datasets/metanetx/dataset \
+    --parameters-seed-int 0 \
+    --parameters-max-molecular-weight-int 500 \
+    --parameters-max-dataset-size-int inf \
+    --parameters-radius-int 2 \
+    --parameters-valid-percent-float 10 \
+    --parameters-test-percent-float 10 \
+    1> download.log \
+    2> download.err
+
 ```
 
 ### `tokenizer.py`
