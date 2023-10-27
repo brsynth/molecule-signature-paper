@@ -324,7 +324,7 @@ def GetMoleculeSignature(mol, radius=2, nBits=0, neighbors=False,
                                                nBits=nBits, 
                                                bitInfo=bitInfo,
                                                useChirality=isomericSmiles,
-                                               useFeatures=True)
+                                               useFeatures=False)
         Radius = -np.ones(mol.GetNumAtoms())
         morgan = np.zeros(mol.GetNumAtoms())
         for bit, info in bitInfo.items():
