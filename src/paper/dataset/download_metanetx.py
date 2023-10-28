@@ -153,8 +153,8 @@ if __name__ == "__main__":
         "dataset_test": os.path.join(_odir, "dataset.test"),
         "dataset_test_small": os.path.join(_odir, "dataset.test.small"),
         "alphabet_sig": os.path.join(_odir, "sig.alphabet.npz"),
-        "alphabet_nbit": os.path.join(_odir, "sig_nbit.alphabet.npz"),
-        "alphabet_neigh_nbit": os.path.join(_odir, "sig_neigh_nbit.alphabet.npz"),
+        "alphabet_sig_nbit": os.path.join(_odir, "sig_nbit.alphabet.npz"),
+        "alphabet_sig_neigh_nbit": os.path.join(_odir, "sig_neigh_nbit.alphabet.npz"),
     }
 
     # Print settings ------------------------------------------------------------
