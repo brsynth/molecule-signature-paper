@@ -59,19 +59,22 @@ class SignatureAlphabet:
         Dict = set()
         start_time = time.time()
         for i in range(len(Smiles)):  
+            
+            if i % 1000 == 0:
+                print(f'... processing alphabet iteration: {i} \
+size: {len(list(Dict))} \
+time: {(time.time()-start_time)}')
+                start_time = time.time()
+            if '*' in Smiles[i]: # no wild card allowed
+                continue
             signature, _, _ = SignatureFromSmiles(Smiles[i], self, verbose=verbose)
             if len(signature) == 0:
-                print(f'WARNING no signature for molecule {i} {Smiles[i]}')
+                if verbose:
+                    print(f'WARNING no signature for molecule {i} {Smiles[i]}')
                 continue  
             for sig in signature.split(' . '): # separate molecules
                 for s in sig.split(' '): # separate atom signatures
                     Dict.add(s)
-            if verbose:
-                if i % 1000 == 0:
-                    print(f'... processing alphabet iteration: {i} \
-size: {len(list(Dict))} \
-time: {(time.time()-start_time)}')
-                    start_time = time.time()
         self.Dict = VectorToDic(list(Dict))
 
     def save(self, filename):
@@ -134,14 +137,14 @@ def LoadAlphabet(filename, verbose=False):
 ###############################################################################
 
 def SignatureStringToVector(signature, Dict, verbose=False):
-# Callable function
-# ARGUMENTS:
-# Signature: a string signature
-# Dict: a dictionary of unique atom signatures
-# RETURNS:
-# SigV: an array of Dict size where
-#       SigV[i] is the occurence number of the atom signatures 
-#       in sig
+    # Callable function
+    # ARGUMENTS:
+    # Signature: a string signature
+    # Dict: a dictionary of unique atom signatures
+    # RETURNS:
+    # SigV: an array of Dict size where
+    #       SigV[i] is the occurence number of the atom signatures 
+    #       in sig
 
     signatureV = np.zeros(len(Dict.keys()))
     for sig in signature.split(' . '): # separate molecules
@@ -153,16 +156,34 @@ def SignatureStringToVector(signature, Dict, verbose=False):
                 print(f'Error atom signature not found in Alphabet {s}')
                 continue # !!!
                 sys.exit('Error') 
+                
     return signatureV
 
+def SignatureSortedString(sig, verbose=False):
+    # Callable function
+    # ARGUMENTS:
+    # sig: a signature cf. signature.py for signature format 
+    # RETURNS:
+    # sigsorted: sorted signature
+    
+    AS, NAS, Deg = SignatureSortedArray(sig, 
+                                        Alphabet=None, 
+                                        unique=False, 
+                                        verbose=verbose)
+    sigsorted = AS[0]
+    for i in range(1, AS.shape[0]):
+        sigsorted = sigsorted + ' ' + AS[i]
+        
+    return sigsorted
+
 def SignatureVectorToString(sigV, Dict, verbose=False):
-# Callable function
-# ARGUMENTS:
-# sigV: a Vector signature
-# sig[i] is the occurence number of the atom signatures 
-# Dict a dictionary, list or array of atom signatures
-# RETURNS:
-# sig: a string signature (without split between molecule)
+    # Callable function
+    # ARGUMENTS:
+    # sigV: a Vector signature
+    # sig[i] is the occurence number of the atom signatures 
+    # Dict a dictionary, list or array of atom signatures
+    # RETURNS:
+    # sig: a string signature (without split between molecule)
 
     I, sig = np.transpose(np.argwhere(sigV != 0))[0], ''
     if isinstance(Dict, (dict)):
@@ -172,18 +193,19 @@ def SignatureVectorToString(sigV, Dict, verbose=False):
     for i in I:
         for k in range(int(sigV[i])):
             sig = A[int(i)] if sig == '' else sig + ' ' + A[i]
-    return sig
+            
+    return SignatureSortedString(sig, verbose=verbose)
 
-def GetSignatureInfo(sig, Alphabet=None, unique=False, verbose=False):
-# Callable function
-# ARGUMENTS:
-# sig: a signature cf. signature.py for signature format 
-# Alphabet: cf. SignatureAlphabet object
-# unique: a flag indicating if the atom signature list 
-#         must contain only unique atom signatures
-# RETURNS:
-# AS: an array of atom signature
-# NAS, Deg: the occurence nbr (degree) of each atom signature
+def SignatureSortedArray(sig, Alphabet=None, unique=False, verbose=False):
+    # Callable function
+    # ARGUMENTS:
+    # sig: a signature cf. signature.py for signature format 
+    # Alphabet: cf. SignatureAlphabet object
+    # unique: a flag indicating if the atom signature list 
+    #         must contain only unique atom signatures
+    # RETURNS:
+    # AS: an array of atom signature
+    # NAS, Deg: the occurence nbr (degree) of each atom signature
 
     if Alphabet != None:
         sig = SignatureVectorToString(sigV, Alphabet.Dict, verbose=verbose)
@@ -217,17 +239,17 @@ def GetSignatureInfo(sig, Alphabet=None, unique=False, verbose=False):
 ###############################################################################
 
 def SignatureFromSmiles(smiles, Alphabet, string=True, verbose=False):
-# Callable function
-# Get a sanitized signature vector for the provided smiles
-# A local routine to make sure all signatures are standard
-# ARGUMENTS:
-# smiles: a smiles string (can contain several molecuel spareted by '.'
-# string: return a sring when True else return a vector
-# Alphabet: cf. SignatureAlphabet object
-# RETURNS:
-# molecule: an array of RDKit molecule 
-# signature: the signature string or vector, 
-#            the molecule and the corresponding smiles
+    # Callable function
+    # Get a sanitized signature vector for the provided smiles
+    # A local routine to make sure all signatures are standard
+    # ARGUMENTS:
+    # smiles: a smiles string (can contain several molecuel spareted by '.'
+    # string: return a sring when True else return a vector
+    # Alphabet: cf. SignatureAlphabet object
+    # RETURNS:
+    # molecule: an array of RDKit molecule 
+    # signature: the signature string or vector, 
+    #            the molecule and the corresponding smiles
 
 
     from library.signature import SanitizeMolecule, GetMoleculeSignature
@@ -281,7 +303,7 @@ def MorganVectorString(morgan):
     s = ''
     for i in range(len(morgan)):
         if morgan[i]:
-            s = f'{i}:{morgan[i]}' if s == '' else s + f', {i}:{morgan[i]}'
+            s = f'{i}:{morgan[i]}' if s == '' else s + f',{i}:{morgan[i]}'
     return s
 
 def MorganBitFromSignature(sa, verbose=False):
@@ -290,51 +312,77 @@ def MorganBitFromSignature(sa, verbose=False):
 # ARGUMENTS:
 # sa : atom signature (string)
 # RETURNS:
-# The Morgan bit
-
+# The Morgan bit and the signature stripped of morgan bits
+    
     if len(sa.split(',')) == 0:
         if verbose:
             print(f'Error signature does not include Morgan bits')
-        return -1
-    return int(sa.split(',')[0])
+        return -1, sa
+    lsa = sa.split('.')
+    
+    # morgan of the root
+    morgan = int(lsa[0].split(',')[0])
+    
+    # signature of the root
+    sas = lsa[0].split(',')[1]
+    
+    # sorted neighbor signatures
+    lsas = []
+    for i in range(1, len(lsa)):
+        lsas.append(lsa[i].split(',')[1])
+    lsas = sorted(lsas)
+    
+    # reconstitute signature
+    sas_neighbors = '.'.join(s for s in lsas)
+    sas = sas + '.' + sas_neighbors
+    
+    return morgan, sas
 
 def MorganVectorFromSignature(signature, Alphabet, verbose=False):
-# Callable function
-# Get the Morgan vector for a signature
-# ARGUMENTS:
-# signature of molecule (string)
-# Alphabet: the alphabet of atom signatures
-# RETURNS:
-# A Morgan vector of size nBits
+    # Callable function
+    # Get the Morgan vector for a signature
+    # ARGUMENTS:
+    # signature of molecule (string)
+    # Alphabet: the alphabet of atom signatures
+    # RETURNS:
+    # A Morgan vector of size nBits, the signature stripped of morgan bits
 
     MorganVector = np.zeros(Alphabet.nBits) 
+    lsas = []
     for sa in signature.split(' '): # separate atom signatures
-        mbit = MorganBitFromSignature(sa, verbose=verbose)
+        mbit, sas = MorganBitFromSignature(sa, verbose=verbose)
         if mbit < 0:
             if verbose:
                 print(f'Error signature does not include Morgan bits')
-            return MorganVector
+            return MorganVector, signature
+        lsas.append(sas)
         MorganVector[mbit] += 1
-            
-    return MorganVector
+        
+    # sort signature stripped of morgan bits
+    lsas = sorted(lsas)
+    signature = ' '.join(sig for sig in lsas) 
+    
+    return MorganVector, signature
 
 def SignatureAlphabetFromMorganBit(MorganBit, Alphabet, verbose=False):
-# Callable function
-# Get all signatures in Alphabet having the provided Morgan bit
-# ARGUMENTS:
-# Morgan bit: an int in [0, nBits]
-# Alphabet: the alphabet of atom signatures
-# RETURNS:
-# A list of signature having the provided Morgan bit
+    # Callable function
+    # Get all signatures in Alphabet having the provided Morgan bit
+    # ARGUMENTS:
+    # Morgan bit: an int in [0, nBits]
+    # Alphabet: the alphabet of atom signatures
+    # RETURNS:
+    # A list of signature having the provided Morgan bit
 
     from library.signature import GetMoleculeSignature
 
     Signatures = []
     if Alphabet.Dict == {}:
-        print(f'WARNING Empty Alphabet')
+        if verbose:
+            print(f'WARNING Empty Alphabet')
         return Signatures
     if MorganBit > Alphabet.nBits:
-        print(f'WARNING MorganBit {MorganBit} exceeds nBits {Alphabet.nBits}')
+        if verbose:
+            print(f'WARNING MorganBit {MorganBit} exceeds nBits {Alphabet.nBits}')
         return Signatures
     for sig in Alphabet.Dict.keys():
         mbit = int(sig.split(',')[0])

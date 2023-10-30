@@ -88,7 +88,7 @@ def ConstraintMatrix(AS, BS, Deg, verbose=False):
 # Get the matrices necessary for the diophantine solver and the enumeration
 ###############################################################################
 
-def BondMatrices(AS, NAS, Deg, verbose=False):
+def BondMatrices(AS, NAS, Deg, unique=True, verbose=False):
 # Local function
 # ARGUMENTS:
 # AS: an array of atom signature
@@ -100,8 +100,7 @@ def BondMatrices(AS, NAS, Deg, verbose=False):
 #    and filled with 0 at initialization
 
     N, K = AS.shape[0], np.max(Deg) 
-    unique = False if np.max(NAS) == 1 else True
-            
+         
     # Fill ABS, BBS (temp arrays used to find compatible bonds)
     ABS, BBS = [], []
     for i in range(N):
@@ -110,13 +109,14 @@ def BondMatrices(AS, NAS, Deg, verbose=False):
             if k < len(asign):
                 btype = asign[k].split('|')[0] # bond type
                 asigk = asign[k].split('|')[1] # neighbor signature
-                ABS.append(btype+'|'+asig0) # type + root signature
-                BBS.append(btype+'|'+asigk) # type + neighbor signature
+                ABS.append(f'{btype}|{asig0}') # type + root signature
+                BBS.append(f'{btype}|{asigk}') # type + neighbor signature
             else:
                 ABS.append('')
                 BBS.append('')   
     ABS, BBS = np.asarray(ABS), np.asarray(BBS)
-    
+    #print('ABS', ABS)
+    #print('BBS', BBS)
     # Fill B (bond candidate matrix) and BS (bond signature)
     B, BS = np.zeros((N*K+1, N*K)), []
     B[N*K] = np.zeros(N*K)
@@ -136,9 +136,9 @@ def BondMatrices(AS, NAS, Deg, verbose=False):
                     bt = ABS[i].split('|')[0]
                     si = ABS[i].split('|')[1]
                     sj = ABS[j].split('|')[1]
-                    bs = si + '|' + bt + '|' + sj if si < sj else \
-                         sj + '|' + bt + '|' + si
+                    bs = f'{si}|{bt}|{sj}' if si < sj else f'{sj}|{bt}|{si}'
                     BS.append(bs)
+
     BS = list(set(BS)) if unique else BS
     BS.sort()
     BS = np.asarray(BS)
@@ -165,9 +165,9 @@ def GetConstraintMatrices(sig, unique=True, verbose=False):
 # C:  a constraint matrix between bond signature (row) and 
 #     atom signature (columns)
 
-    from library.signature_alphabet import GetSignatureInfo
+    from library.signature_alphabet import SignatureSortedArray
     
-    AS, NAS, Deg = GetSignatureInfo(sig, unique=unique, verbose=verbose)
+    AS, NAS, Deg = SignatureSortedArray(sig, unique=unique, verbose=verbose)
     N, K = AS.shape[0], np.max(Deg) 
     
     # Fill A (diag = degree, 0 elsewhere)
@@ -176,11 +176,10 @@ def GetConstraintMatrices(sig, unique=True, verbose=False):
         A[i,i] = Deg[i]
               
     # Get B (bond candidate matrix) and BS (bond signature)
-    B, BS = BondMatrices(AS, NAS, Deg, verbose=verbose)  
+    B, BS = BondMatrices(AS, NAS, Deg, unique=unique, verbose=verbose)        
     
     # Get constraint matrices
     C = ConstraintMatrix(AS, BS, Deg, verbose=verbose)
-   
     if verbose: 
         print(f'A {A.shape}, B {B.shape} BS {BS.shape}, C {C.shape}')
     if verbose==2: 
@@ -191,39 +190,42 @@ def GetConstraintMatrices(sig, unique=True, verbose=False):
 def UpdateConstraintMatrices(AS, IDX, MIN, MAX, Deg, verbose=False):
 # Callable function
 # Same as above but AS, NAS and Deg are given and
-# we remove from AS and all matrices for atoms that cannot be connected
+# we remove from AS and all matrices atoms signature that cannot be connected
 # ARGUMENTS:
 # AS: an array of atom signature
 # IDX, MIN, MAX, Deg: atom index, min and max atom occurence and degree
 # RETURNS:
-# Updated AS, IDX, MIN, MAX, Deg and Constraint matrix
+# Updated AS, IDX, MIN, MAX, Deg and C (Constraint matrix)
 
     # remove from AS atoms that cannot be bounded
-    N, K, I = AS.shape[0], np.max(Deg), [] 
-    B, BS = BondMatrices(AS, MAX, Deg, verbose=verbose) 
-    for i in range(N):
-        keep = True
-        for k in range(Deg[i]):
-            if np.sum(B[i * K + k]) == 0:
-                keep = False
-                break
-        if keep:
-            I.append(i)
-    AS, IDX = AS[I], IDX[I]
-    MIN, MAX, Deg = MIN[I], MAX[I], Deg[I]
-    N, K = AS.shape[0], np.max(Deg) 
-                  
-    # Get B (bond candidate matrix) and BS (bond signature)
-    B, BS = BondMatrices(AS, MAX, Deg, verbose=verbose)  
+    N = float('inf')
+    while AS.shape[0] < N:
+        N, K, I = AS.shape[0], np.max(Deg), [] 
+        B, BS = BondMatrices(AS, MAX, Deg, unique=True, verbose=verbose) 
+        for i in range(N):
+            keep = True
+            for k in range(Deg[i]):
+                if np.sum(B[i * K + k]) == 0:
+                    keep = False
+                    break
+            if keep:
+                I.append(i)
+        AS, IDX = AS[I], IDX[I]
+        MIN, MAX, Deg = MIN[I], MAX[I], Deg[I] 
     
-    # Get constraint matrices
+    # Get constraint matrices  
     C = ConstraintMatrix(AS, BS, Deg, verbose=verbose)
-   
+    
     if verbose: 
-        print(f'AS {AS.shape} C {C.shape}')
+        print(f'UpdateConstraintMatrices AS {AS.shape} C {C.shape} BS {BS.shape}')
     if verbose==2: 
-        print(f'AS\n {AS} \nC\n {C.shape}')
-             
+        print(f'UpdateConstraintMatrices AS')
+        for i in range(AS.shape[0]):
+            print(f'{i} {AS[i]}') 
+        print(f'UpdateConstraintMatrices BS')
+        for i in range(BS.shape[0]):
+            print(f'{i} {BS[i]}') 
+
     return AS, IDX, MIN, MAX, Deg, C
 
             
