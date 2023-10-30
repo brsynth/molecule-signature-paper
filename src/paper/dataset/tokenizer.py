@@ -17,10 +17,10 @@ PAIRS_DIR = "pairs"  # tgt-src pairs directory
 
 class PreTokenizer(object):
     REGEX_ATOMS = re.compile(
-        r"(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\\\|\/|:|~|@|\?|>|\*|\$|\%[0-9]{2}|[0-9])"
+        r"(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\|\/|:|~|@|\?|>|\*|\$|\%[0-9]{2}|[0-9])"
     )
     REGEX_SMILES = re.compile(
-        r"(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\\\|\/|:|~|@|\?|>|\*|\$|\%[0-9]{2}|[0-9])"
+        r"(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|\\|\/|:|~|@|\?|>|\*|\$|\%[0-9]{2}|[0-9])"
     )
 
     @classmethod
@@ -65,7 +65,16 @@ class PreTokenizer(object):
     @classmethod
     def pretokenize_smiles(cls, smiles: str) -> str:
         tokens = [token for token in cls.REGEX_SMILES.findall(smiles)]
-        assert smiles == "".join(tokens)
+        try:
+            assert smiles == "".join(tokens)
+        except AssertionError as err:
+            print("ERROR: SMILES and tokens do not match")
+            print("SMILES:", smiles)
+            print("TOKENS JOINED:", "".join(tokens))
+            print("TOKENS:", tokens)
+            print("Exiting...")
+            raise err
+
         return " ".join(tokens)
 
     @classmethod
