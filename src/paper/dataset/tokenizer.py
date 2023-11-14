@@ -179,7 +179,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--depictions-list",
         nargs="+",
-        default=["SMILES", "SIG", "SIG-NBIT", "SIG-NEIGH-NBIT", "ECFP4"],
+        default=["SMILES", "SIG", "SIG-NBIT", "SIG-NEIGH-NBIT", "SIG-NEIGH", "ECFP4"],
         help=(
             "List of depictions to tokenize. Default: ['SMILES', 'SIG', 'SIG-NBIT', 'SIG-NEIGH-NBIT', 'ECFP4']. "
             "Note: the depictions must be present in the input files."
@@ -244,7 +244,7 @@ if __name__ == "__main__":
                 df[depic] = df[depic].apply(PreTokenizer.pretokenize_smiles)
             elif depic == "ECFP4":
                 df[depic] = df[depic].apply(PreTokenizer.pretokenize_ecfp4)
-            elif depic in ["SIG", "SIG-NBIT", "SIG-NEIGH-NBIT"]:
+            elif depic in ["SIG", "SIG-NBIT", "SIG-NEIGH-NBIT", "SIG-NEIGH"]:
                 df[depic] = df[depic].apply(PreTokenizer.pretokenize_signature)
             else:
                 raise ValueError(f"Unknown depic: {depic}")
