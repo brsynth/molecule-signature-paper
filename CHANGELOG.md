@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.0](https://github.com/brsynth/retrosig/tree/1.0.0) (2023-08-09)
+
+[Full Changelog](https://github.com/brsynth/retrosig/compare/0.1.0...1.0.0)
+
+**Merged pull requests:**
+
+- fix\(download\): put back right path for rdkit method [\#7](https://github.com/brsynth/retrosig/pull/7) ([tduigou](https://github.com/tduigou))
+- fix\(download\): fix argparse crash due to percent sign in help [\#6](https://github.com/brsynth/retrosig/pull/6) ([tduigou](https://github.com/tduigou))
+- merge: main into stable [\#5](https://github.com/brsynth/retrosig/pull/5) ([tduigou](https://github.com/tduigou))
+- Feat tokenizer [\#4](https://github.com/brsynth/retrosig/pull/4) ([tduigou](https://github.com/tduigou))
+- Bump mathieudutour/github-tag-action from 6.0 to 6.1 [\#1](https://github.com/brsynth/retrosig/pull/1) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [0.1.0](https://github.com/brsynth/retrosig/tree/0.1.0) (2023-07-27)
 
 [Full Changelog](https://github.com/brsynth/retrosig/compare/0.0.1...0.1.0)
