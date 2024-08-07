@@ -4,6 +4,7 @@ import glob
 import gzip
 import os
 import re
+import sqlite3
 
 import numpy as np
 import pandas as pd
@@ -88,7 +89,7 @@ if __name__ == "__main__":
     femolecules_sig = os.path.join(
         args.output_directory_str, "emolecules.2023-07-01.sig"
     )
-    fdataset_all = os.path.join(args.output_directory_str, "dataset.all.gz")
+    fdataset_all = os.path.join(args.output_directory_str, "dataset.all.sql")
     fdataset_subset = os.path.join(args.output_directory_str, "dataset.subset")
     fdataset_train = os.path.join(args.output_directory_str, "dataset.train")
     fdataset_valid = os.path.join(args.output_directory_str, "dataset.valid")
@@ -164,53 +165,92 @@ if __name__ == "__main__":
         df_chunk.to_csv(foutput, index=False)
 
     # Create Dataset
-    if not os.path.isfile(fdataset_all + ".csv.gz"):
+    if not os.path.isfile(fdataset_all):
         print("Create dataset")
-        with gzip.open(fdataset_all, "at", compresslevel=4) as fd:
-            for ix, filename in enumerate(
-                glob.glob(
-                    os.path.join(
-                        args.output_directory_str,
-                        "emolecules.2023-07-01.sig.*.csv.gz",
-                    )
+        conn = sqlite3.connect(fdataset_all)
+        cursor = conn.cursor()
+        cursor.execute(
+            """CREATE TABLE compound (
+                        smiles TEXT PRIMARY KEY,
+                        sig TEXT,
+                        sig_neigh TEXT,
+                        sig_nbit TEXT,
+                        sig_neigh_nbit TEXT,
+                        ecfp4 TEXT
+                )"""
+        )
+        for ix, filename in enumerate(
+            glob.glob(
+                os.path.join(
+                    args.output_directory_str,
+                    "emolecules.2023-07-01.sig.*.csv.gz",
                 )
-            ):
-                with gzip.open(filename, "rt") as fid:
-                    for ij, line in enumerate(fid):
-                        if ix > 0 and ij < 1:
-                            continue
-                        fd.write(line)
+            )
+        ):
+            print("Parsing:", filename)
+            with gzip.open(filename, "rt", newline="") as fid:
+                reader = csv.DictReader(fid)
+                for row in reader:
+                    cursor.execute("INSERT or IGNORE INTO compound(smiles, sig, sig_neigh, sig_nbit, sig_neigh_nbit, ecfp4) VALUES(?, ?, ?, ?, ?, ?)", (row["SMILES"], row["SIG"], row["SIG-NEIGH"], row["SIG-NBIT"], row["SIG-NEIGH-NBIT"], row["ECFP4"]))
+                    conn.commit()
+        conn.close()
 
     # Subset
     if not os.path.isfile(fdataset_subset + ".csv"):
+        cols = ["SMILES", "SIG", "SIG-NEIGH", "SIG-NBIT", "SIG-NEIGH-NBIT", "ECFP4"]
+        conn = sqlite3.connect(fdataset_all)
+        cursor = conn.cursor()
+
         if args.parameters_max_dataset_size_int < 0:
-            with gzip.open(fdataset_all, "rt", newline="") as fid, open(fdataset_subset + ".csv", "w") as fod:
-                for line in fid:
-                    fod.write(line)
+            cursor.execute(
+                "SELECT (smiles, sig, sig_neigh, sig_nbit, sig_neigh_nbit, ecfp4) FROM compound"
+            )
+            with open(fdataset_subset + ".csv", "w") as fod:
+                csv_out = csv.DictWriter(fod, fieldnames=cols)
+                csv_out.writeheader()
+                for row in cursor:
+                    data = {
+                        "SMILES": row[0],
+                        "SIG": row[1],
+                        "SIG-NEIGH": row[2],
+                        "SIG-NBIT": row[3],
+                        "SIG-NEIGH-NBIT": row[4],
+                        "ECFP4": row[5]
+                    }
+                    fod.write(data)
         else:
             # Count total
-            total = 0
-            with gzip.open(fdataset_all, "rt", newline="") as fd:
-                for line in fd:
-                    total += 1
+            cursor.execute("SELECT COUNT(*) FROM compound")
+            res = cursor.fetchone()
+            total = res[0]
+            print("Count total:", total)
 
             # Sort
             keep = rng.choice(a=np.arange(2, total + 1), size=int(args.parameters_max_dataset_size_int), replace=False)
             keep.sort()
             cur_ix = 0
-            total = 0
-            with gzip.open(fdataset_all, "rt", newline="") as fid, open(fdataset_subset + ".csv", "w", newline="") as fod:
-                csv_in = csv.DictReader(fid)
-                csv_out = csv.DictWriter(fod, fieldnames=csv_in.fieldnames)
+            cursor.execute(
+                "SELECT smiles, sig, sig_neigh, sig_nbit, sig_neigh_nbit, ecfp4 FROM compound"
+            )
+            with open(fdataset_subset + ".csv", "w", newline="") as fod:
+                csv_out = csv.DictWriter(fod, fieldnames=cols)
                 csv_out.writeheader()
-                for row in csv_in:
-                    if csv_in.line_num == keep[cur_ix]:
-                        csv_out.writerow(row)
-                        total += 1
+                for ij, row in enumerate(cursor):
+                    if ij == keep[cur_ix]:
+                        data = {
+                            "SMILES": row[0],
+                            "SIG": row[1],
+                            "SIG-NEIGH": row[2],
+                            "SIG-NBIT": row[3],
+                            "SIG-NEIGH-NBIT": row[4],
+                            "ECFP4": row[5]
+                        }
+                        csv_out.writerow(data)
                         cur_ix += 1
-                        if cur_ix > args.parameters_max_dataset_size_int:
+                        if cur_ix >= args.parameters_max_dataset_size_int:
                             break
             assert total == args.parameters_max_dataset_size_int
+        conn.close()
 
     # Split Dataset
     if (
