@@ -5,7 +5,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Generator
 
-import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
