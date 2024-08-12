@@ -11,58 +11,9 @@ from rdkit.Chem import AllChem
 
 from signature.Signature import MoleculeSignature
 
-# # Old sig import, to be deprecated
-# try:
-#     from library.signature import SanitizeMolecule
-#     from library.signature_alphabet import SignatureAlphabet, SignatureFromSmiles
-# except ImportError:
-#     logging.error("library.signature and library.signature_alphabet not found (utils.py).")
-
 
 # Logging ---------------------------------------------------------------------
 logger = logging.getLogger(__name__)
-
-
-# Sanitize section ------------------------------------------------------------
-def sanitize(
-        smiles: str,
-        max_molecular_weight: int = 500,
-        isomeric_smiles: bool = False
-) -> str:
-    """Sanitize smiles string.
-
-    Parameters
-    ----------
-    smiles : str
-        Smiles string to sanitize.
-    max_molecular_weight : int, optional
-        Maximum molecular weight, by default 500.
-    isomeric_smiles : bool, optional
-        Whether to keep isomeric smiles, by default False.
-
-    Returns
-    -------
-    str
-        Sanitized smiles string. If smiles is not valid, returns empty string.
-    """
-    # Skip if not a string
-    if smiles == "nan" or smiles == "" or pd.isna(smiles):
-        return ""
-    # Skip if not in one piece
-    if "." in smiles:
-        return ""
-    # Skip if R-group
-    if "*" in smiles:
-        return ""
-    # Skip if too long
-    if len(smiles) > int(max_molecular_weight / 5):  # Cheap skip
-        return res
-    mol, smiles = SanitizeMolecule(Chem.MolFromSmiles(smiles), formalCharge=True)
-    if mol is None:
-        return res
-    if Chem.Descriptors.ExactMolWt(mol) > max_molecular_weight:
-        return res
-    return smiles
 
 
 # Fingerprint section -----------------------------------------------------------------------------
@@ -292,47 +243,3 @@ def open_file(filepath: str | Path, mode: str = "rt"):
         return gzip.open(filepath, mode)
     else:
         return open(filepath, mode)
-
-# Compute signature in various format
-def filter_smi(df: pd.DataFrame):
-    df = df[~df["SMILES"].str.contains("\.")]
-    df = df[~df["SMILES"].str.contains("\*")]
-    df = df[~pd.isna(df["SMILES"])]
-    return df
-
-
-def df_sig1(smi: str, radius: int):
-    sig1, mol, smi = SignatureFromSmiles(
-        smi, SignatureAlphabet(neighbors=False, radius=radius, nBits=0), verbose=False
-    )
-    return sig1
-
-
-def df_sig2(smi: str, radius: int):
-    sig2, mol, smi = SignatureFromSmiles(
-        smi, SignatureAlphabet(neighbors=True, radius=radius, nBits=0), verbose=False
-    )
-    return sig2
-
-
-def df_sig3(smi: str, radius: int):
-    sig3, mol, smi = SignatureFromSmiles(
-        smi,
-        SignatureAlphabet(neighbors=False, radius=radius, nBits=2048),
-        verbose=False,
-    )
-    return sig3
-
-
-def df_sig4(smi: str, radius: int):
-    sig4, mol, smi = SignatureFromSmiles(
-        smi, SignatureAlphabet(neighbors=True, radius=radius, nBits=2048), verbose=False
-    )
-    return sig4
-
-
-def df_ecfp4(smi: str, radius: int):
-    fpgen = AllChem.GetMorganGenerator(radius=radius, fpSize=2048)
-    # fp = fpgen.GetFingerprint(mol)  # returns a bit vector (value 1 or 0)
-    fp = fpgen.GetCountFingerprint(AllChem.MolFromSmiles(smi))
-    return "-".join([str(x) for x in fp.ToList()])
