@@ -8,6 +8,16 @@ conda activate retrosig
 pip install --no-deps -e .
 ```
 
+Since the signature is not yet publicly available, the signature code has to be installed from the source code:
+
+```bash
+conda activate retrosig
+git clone git@github.com:brsynth/signature.git lib/signature  # Credentials required
+pushd lib/signature
+pip install --no-deps -e .
+popd
+```
+
 ## Architecture
 
 In the `src` folder:
@@ -32,7 +42,23 @@ Donwload link (as of 2023/8/4): see `data` folder from the `RetroSig` shared fol
 
 ## Paper
 
-### `download.py`
+### Download, reshape, filter and sample
+
+#### `download.py`
+
+See embedded help:
+
+```bash
+python src/paper/dataset/download.py --help
+```
+
+Example:
+
+```bash
+python src/paper/dataset/download.py --dataset metanetx --show_progress --workers 10
+```
+
+#### `download_metanetx` (old code)
 
 See embedded `--help`:
 

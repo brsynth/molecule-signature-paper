@@ -6,8 +6,10 @@ dependencies:
   - IPython
   - numpy==1.25.1
   - pandas==2.0.3
-  - rdkit==2023.03.2
+  - rdkit==2024.03.5
   - sentencepiece==0.1.99
+  - coloredlogs
+  - pandarallel
   # Deps
   - conda-build
   - pandas
