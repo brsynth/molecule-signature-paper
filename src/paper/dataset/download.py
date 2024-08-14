@@ -28,10 +28,10 @@ _mnx.file_db_raw = _mnx.dir_download / "mnx_raw_4_4.tsv"
 _mnx.file_db_reshaped = _mnx.dir_dataset / "db_reshape.tsv.gz"
 _mnx.file_db_filtered = _mnx.dir_dataset / "db_filtered.tsv.gz"
 _mnx.file_db_sampled = _mnx.dir_dataset / "db_sampled_{size}.tsv.gz"
-_mnx.file_db_descriptors = _mnx.dir_dataset / "db_descriptors.tsv"
+_mnx.file_db_descriptors = _mnx.dir_dataset / "db_descriptors.tsv.gz"
 
 _emol = SimpleNamespace()  # emolecules
-_emol.url = "https://downloads.emolecules.com/free/2024-07-01//version.smi.gz"
+_emol.url = "https://downloads.emolecules.com/free/2024-07-01/version.smi.gz"
 _emol.dir_base = Path(".") / "data" / "emolecules"
 _emol.dir_download = _emol.dir_base / "download"
 _emol.dir_dataset = _emol.dir_base / "dataset"
