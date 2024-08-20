@@ -26,3 +26,4 @@ debug
 datasets*
 *.log
 *.err
+notebooks/5.degeneracy_plot.ipynb
