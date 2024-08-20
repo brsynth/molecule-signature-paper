@@ -15,7 +15,7 @@ import coloredlogs
 
 from signature.utils import mol_from_smiles, mol_filter
 from retrosig.utils import cmd
-from paper.dataset.utils import log_config, open_file, get_signature, get_ecfp
+from paper.utils import log_config, open_file, get_signature, get_ecfp
 
 
 # Settings ----------------------------------------------------------------------------------------
@@ -85,10 +85,10 @@ logger.setLevel(logging.INFO)
 
 # Add TQDM logging handler
 coloredlogs.install(
-    level='DEBUG',
+    level="DEBUG",
     logger=logger,
-    fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
+    fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 
 
@@ -184,8 +184,9 @@ if __name__ == "__main__":
     # Download dataset --------------------------
     logger.info("Downloading dataset...")
     if CONFIG.file_db_raw.exists() and not CONFIG.download_again:
-        logger.info("  L skipped, already exists, use --download_again to "
-                    "download again")
+        logger.info(
+            "  L skipped, already exists, use --download_again to " "download again"
+        )
     else:
         cmd.url_download(url=CONFIG.url, path=CONFIG.file_db_raw)
         logger.info("  L done")
@@ -193,14 +194,13 @@ if __name__ == "__main__":
     # Reshape dataset ---------------------------
     logger.info("Reshaping dataset...")
     if CONFIG.file_db_reshaped.exists() and not CONFIG.reshape_again:
-        logger.info("  L skipped, already exists, use --reshape_again to "
-                    "reshape again")
+        logger.info(
+            "  L skipped, already exists, use --reshape_again to " "reshape again"
+        )
     else:
         cnt_written = 0
 
-        with open_file(
-            CONFIG.file_db_raw, "r"
-        ) as reader, open_file(
+        with open_file(CONFIG.file_db_raw, "r") as reader, open_file(
             CONFIG.file_db_reshaped, "w"
         ) as writer:
             if CONFIG.show_progress:  # Show progress bar
@@ -217,15 +217,19 @@ if __name__ == "__main__":
                 # ID is metanetx
                 # isosmiles is emolecules
                 if line.startswith("#ID"):
+
                     def _get_info(line):
                         _id, _, _, _, _, _, _, _, smiles = line.split("\t")
                         return _id, smiles.strip()
+
                     to_write = True
                     continue
                 elif line.startswith("isosmiles"):
+
                     def _get_info(line):
                         smiles, _id, _ = line.split(" ")
                         return _id, smiles
+
                     to_write = True
                     continue
                 if to_write:
@@ -238,15 +242,14 @@ if __name__ == "__main__":
     # Filter dataset ----------------------------
     logger.info("Filtering dataset...")
     if CONFIG.file_db_filtered.exists() and not CONFIG.filter_again:
-        logger.info("  L skipped, already exists, use --filter_again to "
-                    "filter again")
+        logger.info(
+            "  L skipped, already exists, use --filter_again to " "filter again"
+        )
     else:
         cnt_written = 0
         cnt_skipped = 0
 
-        with open_file(
-            CONFIG.file_db_reshaped, "r"
-        ) as reader, open_file(
+        with open_file(CONFIG.file_db_reshaped, "r") as reader, open_file(
             CONFIG.file_db_filtered, "w"
         ) as writer:
             if CONFIG.show_progress:  # Show progress bar
@@ -287,8 +290,10 @@ if __name__ == "__main__":
     # Compute descriptors -----------------------
     logger.info("Computing descriptors...")
     if CONFIG.file_db_descriptors.exists() and not CONFIG.descriptors_again:
-        logger.info("  L skipped, already exists, use --descriptor_again to "
-                    "compute again descriptors")
+        logger.info(
+            "  L skipped, already exists, use --descriptor_again to "
+            "compute again descriptors"
+        )
     else:
         cnt_written = 0
 
@@ -297,12 +302,9 @@ if __name__ == "__main__":
         # Setting up parallel processing
         pandarallel.initialize(nb_workers=CONFIG.workers, verbose=1)
 
-        with open_file(
-            CONFIG.file_db_filtered, "r"
-        ) as reader, open_file(
+        with open_file(CONFIG.file_db_filtered, "r") as reader, open_file(
             CONFIG.file_db_descriptors, "w"
         ) as writer:
-
             reader = pd.read_csv(reader, sep="\t", iterator=True, chunksize=CHUNKSIZE)
             writer.write("ID\tSMILES_0\tSMILES\tSignature\tECFP\n")  # Header
 
@@ -321,9 +323,13 @@ if __name__ == "__main__":
                 # Rename the SMILES column to SMILES_0 to avoid the error of having the same column
                 # name when parallelizing the apply function
                 df_chunk[["SMILES", "Signature", "ECFP"]] = df_chunk.parallel_apply(
-                    lambda x: _get_descriptors(x["SMILES_0"]), axis=1, result_type="expand"
+                    lambda x: _get_descriptors(x["SMILES_0"]),
+                    axis=1,
+                    result_type="expand",
                 )
-                df_chunk.to_csv(writer, sep="\t", index=False, header=False)  # Append chunk to file
+                df_chunk.to_csv(
+                    writer, sep="\t", index=False, header=False
+                )  # Append chunk to file
                 cnt_written += len(df_chunk)
 
         logger.info(f"  L done (written: {cnt_written:,})")
@@ -337,8 +343,9 @@ if __name__ == "__main__":
         logger.info(f"  L Sampling {size:,} lines into {_sample_file}...")
 
         if _sample_file.exists() and not CONFIG.sample_again:
-            logger.info("    L skipped, already exists, use --sample_again to "
-                        "sample again")
+            logger.info(
+                "    L skipped, already exists, use --sample_again to " "sample again"
+            )
         else:
             cnt_written = 0
             nb_lines = _get_nb_lines(CONFIG.file_db_filtered)
@@ -350,7 +357,6 @@ if __name__ == "__main__":
             _indexes = []
 
             with open_file(CONFIG.file_db_filtered, "r") as reader:
-
                 if CONFIG.show_progress:
                     reader = tqdm(
                         reader,
@@ -372,7 +378,6 @@ if __name__ == "__main__":
 
             # Write sampled lines
             with open_file(_sample_file, "w") as writer:
-
                 if CONFIG.show_progress:
                     sampled_lines = tqdm(
                         sampled_lines,
