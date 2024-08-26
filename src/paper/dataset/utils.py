@@ -209,7 +209,7 @@ def log_config(
     _PRE_WIDTH = 4 + (4 * recursion_level)  # indent width
     if recursion_level == 0:
         logger.info(f"{'Settings ':-<80}")
-    for key, value in sorted(vars(namespace).items()):
+    for key, value in vars(namespace).items():
         if isinstance(value, SimpleNamespace):
             logger.info(f"{' ' * _PRE_WIDTH}{key + '.':<}")
             log_config(value, recursion_level + 1)
