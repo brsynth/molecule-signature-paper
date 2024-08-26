@@ -36,7 +36,7 @@ def set_up_model(
     nn.Module,
     torch.optim.Optimizer,
     torch.optim.lr_scheduler,
-    nn.Module
+    nn.Module,
 ]:
 
     logger.debug("  L Setting up layers...")
@@ -48,7 +48,7 @@ def set_up_model(
         dropout=CONFIG.model.dropout_rate,
         src_vocab_size=getattr(CONFIG.tokenizer, CONFIG.source).vocab_size,
         tgt_vocab_size=getattr(CONFIG.tokenizer, CONFIG.target).vocab_size,
-    ).to(CONFIG.training.device)
+    )
 
     # Initialize weights -------------------------
     logger.debug("  L Initializing weights...")
