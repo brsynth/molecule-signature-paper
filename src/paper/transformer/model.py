@@ -2,12 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import math
-from typing import List
 
 import torch
 import torch.nn as nn
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "mps")
 UNK_IDX = 0
 BOS_IDX = 1
 EOS_IDX = 2
