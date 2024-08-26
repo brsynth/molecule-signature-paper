@@ -32,24 +32,19 @@ model:
 
 # Training settings
 training:
-    batch_size: 8
-    max_seq_len: 64
+    batch_size: 512
     learning_rate: 0.001
     epochs: 20
     patience: 10
     max_grad_norm: 1.0
-    log_interval: 100
+    log_interval: 20
     save_interval: 1
-    save_dir: ./model
-    device: mps
+    save_dir: ./models
     kfold: 5
     seed: 42
 
 # Data settings
 data:
-    base_path:
-        metanetx: ./data/metanetx
-        emolecules: ./data/emolecules
     dataset_file: dataset/db_descriptors.tsv.gz
     spm_dir: spm
     model_dir: models
@@ -58,4 +53,5 @@ data:
 source: SMILES / SIGNATURE / ECFP
 target: SMILES / SIGNATURE / ECFP
 dataset: metanetx / emolecules
+base_path: ./data/metanetx / ./data/emolecules
 config: ./src/paper/transformer/config.yaml
