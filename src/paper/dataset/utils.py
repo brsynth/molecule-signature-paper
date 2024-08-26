@@ -212,7 +212,7 @@ def log_config(
     for key, value in vars(namespace).items():
         if isinstance(value, SimpleNamespace):
             logger.info(f"{' ' * _PRE_WIDTH}{key + '.':<}")
-            log_config(value, recursion_level + 1)
+            log_config(value, recursion_level + 1, logger)
         else:
             logger.info(f"{' ' * _PRE_WIDTH}{key:<{_COL_WIDTH - _PRE_WIDTH}}: {value}")
     logger.info("-" * 80) if recursion_level == 0 else None
