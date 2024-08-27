@@ -738,6 +738,7 @@ if __name__ == "__main__":
             shuffle=False,  # Already shuffled by KFold
             collate_fn=collate_fn,
             num_workers=NB_LOADER_WORKERS,
+            pin_memory=True,  # Expected to speed up training
         )
         val_loader = DataLoader(
             dataset=val_subset,
@@ -745,6 +746,7 @@ if __name__ == "__main__":
             shuffle=False,  # No need to shuffle
             collate_fn=collate_fn,
             num_workers=NB_LOADER_WORKERS,
+            pin_memory=True,  # Expected to speed up training
         )
 
         # Set up a fresh model at each fold
