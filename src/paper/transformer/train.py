@@ -650,7 +650,7 @@ if __name__ == "__main__":
         "--device",
         metavar="DEVICE",
         type=str,
-        default=torch.device("cuda" if torch.cuda.is_available() else "mps"),
+        default="cuda" if torch.cuda.is_available() else "mps",
         help="Device to use (default: %(default)s)",
     )
 
@@ -671,6 +671,9 @@ if __name__ == "__main__":
     # SentencePiece models ----------------------
     spm_dir = Path(base_path) / "spm"
     src_sp_model, tgt_sp_model = load_sp_models(CONFIG, spm_dir)
+
+    # Set device --------------------------------
+    CONFIG.device = torch.device(CONFIG.device)
 
     # Load dataset ----------------------------------------------------------------
     data_path = Path(base_path) / CONFIG.data.dataset_file
