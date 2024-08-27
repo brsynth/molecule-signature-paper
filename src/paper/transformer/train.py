@@ -34,7 +34,7 @@ coloredlogs.install(
     stream=sys.stdout,  # Jupyter Notebooks
 )
 
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 
 # Handy functions -----------------------------------------------------------------------------
