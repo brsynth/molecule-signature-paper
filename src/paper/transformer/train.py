@@ -366,6 +366,9 @@ def train(
     total_loss = 0.
     model.to(device)
 
+    # Initialiser le GradScaler pour gérer les gradients en mixed precision
+    scaler = torch.GradScaler(device.type)
+
     for batch_idx, batch in enumerate(data_loader):
 
         (
@@ -386,21 +389,40 @@ def train(
 
         optimizer.zero_grad()  # Reset gradients
 
-        # Pass data through the model
-        output = model(
-            source,
-            target_input,
-            src_mask=None,
-            tgt_mask=tgt_mask,
-            src_key_padding_mask=src_padding_mask,
-            tgt_key_padding_mask=tgt_padding_mask,
-            memory_key_padding_mask=src_padding_mask,
-        )
+        # Activate mixed precision
+        with torch.autocast(device.type):
 
-        loss = criterion(output.view(-1, output.size(-1)), target_output.view(-1))  # Loss
-        loss.backward()  # Back-propagate
-        optimizer.step()  # Update weights
+            # Pass data through the model
+            output = model(
+                source,
+                target_input,
+                src_mask=None,
+                tgt_mask=tgt_mask,
+                src_key_padding_mask=src_padding_mask,
+                tgt_key_padding_mask=tgt_padding_mask,
+                memory_key_padding_mask=src_padding_mask,
+            )
+
+            # Calculate loss
+            try:
+                loss = criterion(output.view(-1, output.size(-1)), target_output.view(-1))
+            except RuntimeError:
+                # view() is not supported for "cpu" torch.device
+                loss = criterion(output.reshape(-1, output.size(-1)), target_output.reshape(-1))
+
+        # Continue with scaling
+        scaler.scale(loss).backward()  # Back-propagate
+        scaler.step(optimizer)  # Update weights
+        scaler.update()  # Update the scale
+
+        # Legacy code
+        # loss.backward()  # Back-propagate
+        # optimizer.step()  # Update weights
+
+        # Update learning rate
         scheduler.step()  # Update learning rate
+
+        # Log loss
         total_loss += loss.item()  # Log loss
 
         # Log progress
