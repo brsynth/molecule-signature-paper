@@ -286,7 +286,28 @@ def create_collate_fn(pad_idx: int):
     """Create a pre-parametrized collate function for DataLoader."""
 
     def collate_fn(batch):
-        """Collate function for DataLoader that pads and masks sequences."""
+        """Collate function for DataLoader that pads and masks sequences.
+
+        Parameters
+        ----------
+        batch : list
+            List of tuples containing source and target sequences.
+
+        Returns
+        -------
+        src : torch.Tensor
+            Source sequences.
+        tgt_input : torch.Tensor
+            Target sequences without the last token.
+        tgt_output : torch.Tensor
+            Target sequences without the first token.
+        tgt_mask : torch.Tensor
+            Mask for the target input sequences.
+        src_padding_mask : torch.Tensor
+            Padding mask for the source sequences.
+        tgt_padding_mask : torch.Tensor
+            Padding mask for the target input sequences.
+        """
         src, tgt = zip(*batch)
 
         # Padding
@@ -593,7 +614,7 @@ if __name__ == "__main__":
         type=str,
         choices=["SMILES", "SIGNATURE", "ECFP"],
         default="SMILES",
-        help="Source type (default: %(default)s); choices: {%(choices)s}",
+        help="Source type (default: %(default)s; choices: {%(choices)s})",
     )
     parser.add_argument(
         "--target",
@@ -601,7 +622,7 @@ if __name__ == "__main__":
         type=str,
         choices=["SMILES", "SIGNATURE", "ECFP"],
         default="SIGNATURE",
-        help="Target type (default: %(default)s); choices: {%(choices)s}",
+        help="Target type (default: %(default)s); choices: {%(choices)s})",
     )
     parser.add_argument(
         "--dataset",
@@ -730,8 +751,9 @@ if __name__ == "__main__":
         model = set_up_model(CONFIG)
         if torch.cuda.is_available():
             model = torch.compile(model)  # Expected to speed up training
+            logger.debug("  L Model compiled")
         else:
-            logger.warning("Torch did not compile the model")
+            logger.debug("  L Torch did not compile the model")
 
         # Set up optimizer
         optimizer = torch.optim.Adam(
