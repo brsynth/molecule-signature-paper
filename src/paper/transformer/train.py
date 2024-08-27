@@ -662,6 +662,13 @@ if __name__ == "__main__":
         help="Base path for the dataset tree (default: %(default)s)",
     )
     parser.add_argument(
+        "--model_dir",
+        metavar="DIR",
+        type=str,
+        default="models",
+        help="Directory name to save the models (default: %(default)s)",
+    )
+    parser.add_argument(
         "--config",
         metavar="FILE",
         type=str,
@@ -745,7 +752,7 @@ if __name__ == "__main__":
 
     # Training loop -----------------------------
     nb_batches = DATASET_LEN // CONFIG.training.batch_size
-    model_dir = Path(base_path) / CONFIG.data.model_dir
+    model_dir = Path(base_path) / CONFIG.model_dir
     for fold, (train_idx, val_idx) in enumerate(kfold.split(range(DATASET_LEN))):
 
         # Log fold
