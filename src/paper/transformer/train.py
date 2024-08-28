@@ -415,16 +415,16 @@ def train(
             loss /= accumulate_grad  # Normalize the loss for gradient accumulation
             # loss = criterion(output.reshape(-1, output.size(-1)), target_output.reshape(-1))
 
-            # Check for NaN and Inf values in the loss
-            if torch.isnan(loss):
-                logger.error(f"  L Loss is NaN at batch {batch_idx} - Stopping training")
-                break
-            if torch.isinf(loss):
-                logger.error(f"  L Loss is Inf at batch {batch_idx} - Stopping training")
-                break
+        # Check for NaN and Inf values in the loss
+        if torch.isnan(loss):
+            logger.error(f"  L Loss is NaN at batch {batch_idx} - Stopping training")
+            break
+        if torch.isinf(loss):
+            logger.error(f"  L Loss is Inf at batch {batch_idx} - Stopping training")
+            break
 
-            # Normalize the loss for gradient accumulation
-            loss /= accumulate_grad
+        # Normalize the loss for gradient accumulation
+        loss /= accumulate_grad
 
         # Back-propagation with mixed precision scaler
         scaler.scale(loss).backward()
@@ -449,11 +449,19 @@ def train(
             scheduler.step()  # Update learning rate
             optimizer.zero_grad()  # Reset gradients
 
-        batch_losses.append(loss.item())  # Collect loss for the batch
+        # Collect loss for each batch
+        batch_losses.append(loss.item())
 
         # Log progress
         if batch_idx != 0 and batch_idx % log_interval == 0:
             logger.info(f"  L Batch {batch_idx:>5}/{len(data_loader)} - Loss: {loss.item():.4f}")
+
+    # Look for remaining gradients to be updated
+    if (batch_idx + 1) % accumulate_grad != 0:
+        scaler.step(optimizer)
+        scaler.update()
+        scheduler.step()
+        optimizer.zero_grad
 
     # Return the average loss
     return sum(batch_losses) / len(batch_losses)
