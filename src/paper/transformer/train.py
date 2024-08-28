@@ -143,8 +143,7 @@ class TSVDataset(Dataset):
             file_path: str | Path,
             col_idx: tuple[int, int],
             sp_models: tuple[spm.SentencePieceProcessor, spm.SentencePieceProcessor],
-            seq_lengths: tuple[int, int] = (100, None),
-            max_length: int = None,
+            max_lengths: tuple[int, int] = (100, None),
             bos_idx: int = 1,
             eos_idx: int = 2,
     ):
@@ -154,8 +153,8 @@ class TSVDataset(Dataset):
             "target": col_idx[1],
         }
         self.max_length = {
-            "source": seq_lengths[0],
-            "target": seq_lengths[1],
+            "source": max_lengths[0],
+            "target": max_lengths[1],
         }
         self.sp_models = {
             "source": sp_models[0],
@@ -165,11 +164,11 @@ class TSVDataset(Dataset):
         if self.max_length["source"] is None:
             self.max_length["source"] = self._find_longuest_sequence("source")
         else:
-            self.max_length["source"] = max_length[0]
+            self.max_length["source"] = max_lengths[0]
         if self.max_length["target"] is None:
             self.max_length["target"] = self._find_longuest_sequence("target")
         else:
-            self.max_lentgh["target"] = max_length[1]
+            self.max_lentgh["target"] = max_lengths[1]
         self.bos_idx = bos_idx
         self.eos_idx = eos_idx
 
