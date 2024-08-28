@@ -410,8 +410,20 @@ def train(
                 # view() is not supported for "cpu" torch.device
                 loss = criterion(output.reshape(-1, output.size(-1)), target_output.reshape(-1))
 
-        # Continue with scaling
+            # Check for NaN
+            if torch.isnan(loss) or torch.isinf(loss):
+                logger.error("  L Loss is NaN or Inf at batch {batch_idx} - Stopping training")
+                break
+
+        # Back-propagation with mixed precision and gradient inspection
         scaler.scale(loss).backward()  # Back-propagate
+        scaler.unscale_(optimizer)  # Unscales the gradients of optimizer's assigned params in-place
+        for name, param in model.named_parameters():
+            if param.grad is not None:
+                if torch.isnan(param.grad).any() or torch.isinf(param.grad).any():
+                    logger.error(f"  L Gradient for {name} is NaN or Inf")
+
+        # Update weights
         scaler.step(optimizer)  # Update weights
         scaler.update()  # Update the scale
 
