@@ -531,7 +531,7 @@ def evaluate(
     return avg_loss, accuracy, perplexity
 
 
-def save_model(
+def save_checkpoint(
         model: torch.nn.Module,
         optimizer: torch.optim.Optimizer,
         scheduler: torch.optim.lr_scheduler._LRScheduler,
@@ -540,7 +540,7 @@ def save_model(
         save_dir: str | Path,
         model_name: str = "model.pt",
 ):
-    """Save the model, optimizer, epoch and loss to a file.
+    """Save the model, optimizer, schedule, epoch and loss to a file.
 
     Parameters
     ----------
@@ -582,7 +582,7 @@ def save_model(
     logger.debug(f"Model saved at {model_path}")
 
 
-def load_model(
+def load_checkpoint(
         model: torch.nn.Module,
         optimizer: torch.optim.Optimizer,
         scheduler: torch.optim.lr_scheduler._LRScheduler,
@@ -595,7 +595,7 @@ def load_model(
     int,
     float,
 ]:
-    """Load the model, optimizer, epoch and loss from a file.
+    """Load the model, optimizer, scheduler, epoch and loss from a file.
 
     Parameters
     ----------
@@ -623,7 +623,7 @@ def load_model(
     loss : float
         Loaded loss.
     """
-    checkpoint = torch.load(load_path, map_location=device)
+    checkpoint = torch.load(load_path, map_location=device, weights_only=True)
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
