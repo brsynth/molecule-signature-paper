@@ -152,7 +152,7 @@ class TSVDataset(Dataset):
             "source": col_idx[0],
             "target": col_idx[1],
         }
-        self.max_length = {
+        self.max_lengths = {
             "source": max_lengths[0],
             "target": max_lengths[1],
         }
@@ -161,14 +161,14 @@ class TSVDataset(Dataset):
             "target": sp_models[1],
         }
         self.data = self._load_data()
-        if self.max_length["source"] is None:
-            self.max_length["source"] = self._find_longuest_sequence("source")
+        if self.max_lengths["source"] is None:
+            self.max_lengths["source"] = self._find_longuest_sequence("source")
         else:
-            self.max_length["source"] = max_lengths[0]
-        if self.max_length["target"] is None:
-            self.max_length["target"] = self._find_longuest_sequence("target")
+            self.max_lengths["source"] = max_lengths[0]
+        if self.max_lengths["target"] is None:
+            self.max_lengths["target"] = self._find_longuest_sequence("target")
         else:
-            self.max_lentgh["target"] = max_lengths[1]
+            self.max_lengths["target"] = max_lengths[1]
         self.bos_idx = bos_idx
         self.eos_idx = eos_idx
 
@@ -213,8 +213,8 @@ class TSVDataset(Dataset):
         target_tokens = self._add_beos_indexes(target_tokens)
 
         # Trimming
-        source_tokens = self._trim_sequence(source_tokens, self.max_length["source"])
-        target_tokens = self._trim_sequence(target_tokens, self.max_length["target"])
+        source_tokens = self._trim_sequence(source_tokens, self.max_lengths["source"])
+        target_tokens = self._trim_sequence(target_tokens, self.max_lengths["target"])
 
         return torch.tensor(source_tokens), torch.tensor(target_tokens)
 
