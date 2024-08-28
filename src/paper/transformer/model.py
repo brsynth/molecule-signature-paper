@@ -96,6 +96,26 @@ class Transformer(nn.Module):
             tgt_mask=tgt_mask,
         )
 
+    def state_dict(self, destination=None, prefix='', keep_vars=False):
+
+        # Run the parent class method
+        state_dict = super(Transformer, self).state_dict(
+            destination=destination,
+            prefix=prefix,
+            keep_vars=keep_vars
+        )
+
+        # Refine the state_dict keys since pytorch.compile append "_orig_mod."
+        # to the keys of the state_dict, we'll need to remove it to have the
+        # same keys as the original state_dict.
+        state_dict = {
+            key.replace('_orig_mod.', ''): value
+            for key, value in state_dict.items()
+        }
+
+        # Retour du state_dict modifié
+        return state_dict
+
 
 class PositionalEncoding(nn.Module):
     """
