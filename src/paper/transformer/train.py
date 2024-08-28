@@ -419,14 +419,16 @@ def train(
         scaler.unscale_(optimizer)  # Unscales the gradients of optimizer's assigned params in-place
         for name, param in model.named_parameters():
             if param.grad is not None:
-                if torch.isnan(param.grad).any() or torch.isinf(param.grad).any():
-                    logger.error(f"  L Gradient for {name} is NaN or Inf")
+                if torch.isnan(param.grad).any():
+                    logger.error(f"  L Gradient for {name} is NaN")
+                if torch.isinf(param.grad).any():
+                    logger.error(f"  L Gradient for {name} is Inf")
 
         # Update weights
         scaler.step(optimizer)  # Update weights
         scaler.update()  # Update the scale
 
-        # Legacy code
+        # Legacy code without mixed precision
         # loss.backward()  # Back-propagate
         # optimizer.step()  # Update weights
 
