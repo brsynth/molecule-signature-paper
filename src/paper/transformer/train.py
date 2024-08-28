@@ -854,7 +854,7 @@ if __name__ == "__main__":
             )
 
             # Save states
-            save_model(
+            save_checkpoint(
                 model=model,
                 optimizer=optimizer,
                 scheduler=scheduler,
