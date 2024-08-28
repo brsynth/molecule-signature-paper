@@ -332,6 +332,7 @@ def train(
         optimizer: torch.optim.Optimizer,
         scheduler: torch.optim.lr_scheduler._LRScheduler,
         criterion: torch.nn.Module,
+        scaler: torch.GradScaler,
         data_loader: DataLoader,
         device: torch.device,
         log_interval: int = 100,
@@ -351,6 +352,8 @@ def train(
         Learning rate scheduler.
     criterion : torch.nn.Module
         Loss function to be used.
+    scaler : torch.GradScaler
+        Gradient scaler for mixed precision training.
     data_loader : DataLoader
         DataLoader containing training data.
     device : torch.device
@@ -364,9 +367,6 @@ def train(
     model.train()
     total_loss = 0.
     model.to(device)
-
-    # Initialiser le GradScaler pour gérer les gradients en mixed precision
-    scaler = torch.GradScaler(device.type)
 
     for batch_idx, batch in enumerate(data_loader):
 
@@ -405,17 +405,21 @@ def train(
             # Calculate loss
             try:
                 loss = criterion(output.view(-1, output.size(-1)), target_output.view(-1))
-            except RuntimeError:
-                # view() is not supported for "cpu" torch.device
+            except RuntimeError:  # view() is not supported for "cpu" torch.device
                 loss = criterion(output.reshape(-1, output.size(-1)), target_output.reshape(-1))
 
-            # Check for NaN
-            if torch.isnan(loss) or torch.isinf(loss):
-                logger.error(f"  L Loss is NaN or Inf at batch {batch_idx} - Stopping training")
+            # Check for NaN and Inf values in the loss
+            if torch.isnan(loss):
+                logger.error(f"  L Loss is NaN at batch {batch_idx} - Stopping training")
+                break
+            if torch.isinf(loss):
+                logger.error(f"  L Loss is Inf at batch {batch_idx} - Stopping training")
                 break
 
         # Back-propagation with mixed precision and gradient inspection
-        scaler.scale(loss).backward()  # Back-propagate
+        scaler.scale(loss).backward()
+
+        # Check for NaN and Inf values in the gradients
         scaler.unscale_(optimizer)  # Unscales the gradients of optimizer's assigned params in-place
         for name, param in model.named_parameters():
             if param.grad is not None:
@@ -537,6 +541,7 @@ def save_checkpoint(
         model: torch.nn.Module,
         optimizer: torch.optim.Optimizer,
         scheduler: torch.optim.lr_scheduler._LRScheduler,
+        scaler: torch.GradScaler,
         epoch: int,
         loss: float,
         save_dir: str | Path,
@@ -552,6 +557,8 @@ def save_checkpoint(
         Optimizer to save.
     scheduler : torch.optim.lr_scheduler._LRScheduler
         Scheduler to save.
+    scaler : torch.GradScaler
+        Scaler to save.
     epoch : int
         Epoch to save.
     loss : float
@@ -575,6 +582,7 @@ def save_checkpoint(
             "model_state_dict": model.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
             "scheduler_state_dict": scheduler.state_dict(),
+            "scaler_state_dict": scaler.state_dict(),
             "loss": loss,
         },
         model_path,
@@ -588,12 +596,14 @@ def load_checkpoint(
         model: torch.nn.Module,
         optimizer: torch.optim.Optimizer,
         scheduler: torch.optim.lr_scheduler._LRScheduler,
+        scaler: torch.GradScaler,
         load_path: str | Path,
         device: torch.device,
 ) -> Tuple[
     torch.nn.Module,
     torch.optim.Optimizer,
     torch.optim.lr_scheduler._LRScheduler,
+    torch.GradScaler,
     int,
     float,
 ]:
@@ -629,12 +639,13 @@ def load_checkpoint(
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+    scaler.load_state_dict(checkpoint['scaler_state_dict'])
     epoch = checkpoint['epoch']
     loss = checkpoint['loss']
 
-    logger.debug(f"Model loaded from {load_path}")
+    logger.debug(f"Checkpoint loaded from {load_path}")
 
-    return model, optimizer, scheduler, epoch, loss
+    return model, optimizer, scheduler, scaler, epoch, loss
 
 
 # Main ---------------------------------------------------------------------------------------------
@@ -832,6 +843,9 @@ if __name__ == "__main__":
             pct_start=0.3  # Percentage of the cycle spent increasing the learning rate
         )
 
+        # Set up mixed precision
+        scaler = torch.GradScaler()
+
         # Set up loss function
         criterion = torch.nn.CrossEntropyLoss()
 
@@ -847,6 +861,7 @@ if __name__ == "__main__":
                 optimizer=optimizer,
                 scheduler=scheduler,
                 criterion=criterion,
+                scaler=scaler,
                 data_loader=train_loader,
                 device=CONFIG.device,
                 log_interval=CONFIG.training.log_interval,
@@ -869,13 +884,15 @@ if __name__ == "__main__":
                 f"Validation Perplexity: {val_perplexity:.4f}"
             )
 
-            # Save states
-            save_checkpoint(
-                model=model,
-                optimizer=optimizer,
-                scheduler=scheduler,
-                epoch=epoch,
-                loss=val_loss,
-                save_dir=model_dir / f"fold_{fold+1:02}",
-                model_name=f"model_epoch_{epoch+1:03}.pt",
-            )
+            # Save states every save_interval epochs
+            if (epoch + 1) % CONFIG.training.save_interval == 0:
+                save_checkpoint(
+                    model=model,
+                    optimizer=optimizer,
+                    scheduler=scheduler,
+                    scaler=scaler,
+                    epoch=epoch,
+                    loss=val_loss,
+                    save_dir=model_dir / f"fold_{fold + 1:02}",
+                    model_name=f"model_epoch_{epoch + 1:03}.pt",
+                )
