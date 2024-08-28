@@ -828,7 +828,7 @@ if __name__ == "__main__":
             optimizer,
             max_lr=1e-3,  # Maximum learning rate
             steps_per_epoch=len(train_loader),  # Number of batches per epoch
-            epochs=10,  # Expected number of epochs
+            epochs=CONFIG.training.epochs,  # Expected number of epochs
             pct_start=0.3  # Percentage of the cycle spent increasing the learning rate
         )
 
@@ -862,11 +862,11 @@ if __name__ == "__main__":
 
             # Log the evaluation metrics
             logger.info(
-                f"  L Epoch {epoch + 1:>3} - "
-                f"    L Training Loss: {avg_loss:.4f} - "
-                f"    L Validation Loss: {val_loss:.4f} - "
-                f"    L Validation Accuracy: {val_accuracy:.4f} - "
-                f"    L Validation Perplexity: {val_perplexity:.4f}"
+                f"  L Epoch {epoch + 1:>3} -- "
+                f"Training Loss: {avg_loss:.4f} -- "
+                f"Validation Loss: {val_loss:.4f} -- "
+                f"Validation Accuracy: {val_accuracy:.4f} -- "
+                f"Validation Perplexity: {val_perplexity:.4f}"
             )
 
             # Save states
