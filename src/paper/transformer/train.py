@@ -801,19 +801,33 @@ if __name__ == "__main__":
             logger.debug("  L Torch did not compile the model")
 
         # Set up optimizer
-        optimizer = torch.optim.Adam(
+        # optimizer = torch.optim.Adam(
+        #     model.parameters(),
+        #     lr=CONFIG.training.learning_rate,
+        #     betas=(0.9, 0.98),
+        #     eps=1e-9,
+        # )
+        optimizer = torch.optim.AdamW(
             model.parameters(),
             lr=CONFIG.training.learning_rate,
-            betas=(0.9, 0.98),
-            eps=1e-9,
+            betas=(0.9, 0.999),
+            eps=1e-8,
+            weight_decay=0.01,
         )
 
         # Set up scheduler
-        scheduler = torch.optim.lr_scheduler.CyclicLR(
+        # scheduler = torch.optim.lr_scheduler.CyclicLR(
+        #     optimizer,
+        #     base_lr=CONFIG.training.learning_rate / 100,
+        #     max_lr=CONFIG.training.learning_rate,
+        #     step_size_up=nb_batches // 2,  # One cycle per epoch
+        # )
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer,
-            base_lr=CONFIG.training.learning_rate / 100,
-            max_lr=CONFIG.training.learning_rate,
-            step_size_up=nb_batches // 2,  # One cycle per epoch
+            max_lr=1e-3,  # Maximum learning rate
+            steps_per_epoch=len(train_loader),  # Number of batches per epoch
+            epochs=10,  # Expected number of epochs
+            pct_start=0.3  # Percentage of the cycle spent increasing the learning rate
         )
 
         # Set up loss function
