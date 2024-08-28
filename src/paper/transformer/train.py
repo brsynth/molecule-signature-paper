@@ -706,6 +706,13 @@ if __name__ == "__main__":
         default="cuda" if torch.cuda.is_available() else "mps",
         help="Device to use (default: %(default)s)",
     )
+    parser.add_argument(
+        "--num_loader_workers",
+        metavar="INT",
+        type=int,
+        default=0,
+        help="Number of DataLoader workers (default: %(default)s)",
+    )
 
     args = parser.parse_args()
 
@@ -796,16 +803,16 @@ if __name__ == "__main__":
             batch_size=CONFIG.training.batch_size,
             shuffle=False,  # Already shuffled by KFold
             collate_fn=collate_fn,
-            num_workers=NB_LOADER_WORKERS,
             pin_memory=True,  # Expected to speed up training
+            num_workers=CONFIG.num_loader_workers,
         )
         val_loader = DataLoader(
             dataset=val_subset,
             batch_size=CONFIG.training.batch_size,
             shuffle=False,  # No need to shuffle
             collate_fn=collate_fn,
-            num_workers=NB_LOADER_WORKERS,
             pin_memory=True,  # Expected to speed up training
+            num_workers=CONFIG.num_loader_workers,
         )
         logger.debug("  L DataLoaders set up")
 
