@@ -34,6 +34,7 @@ model:
 training:
     epochs: 20
     batch_size: 16
+    compile: True
     learning_rate: 0.001
     patience: 10
     log_interval: 10

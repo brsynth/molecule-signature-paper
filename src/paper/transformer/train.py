@@ -759,12 +759,15 @@ if __name__ == "__main__":
 
     # Debug values ------------------------------
     DATASET_LEN = len(dataset)
-    DATASET_LEN = 1000
-    CONFIG.training.kfold = 2
-    CONFIG.training.batch_size = 2
-    CONFIG.training.epochs = 10
-    CONFIG.training.log_interval = 1
-    NB_LOADER_WORKERS = 0
+    if (
+        CONFIG.device.type == "cuda" and
+        torch.cuda.is_available() and
+        CONFIG.training.compile
+    ):
+        COMPILE_MODEL = True
+        logger.info("Model will be compiled by Torch")
+    else:
+        COMPILE_MODEL = False
 
     # K-Fold -----------------------------------
     n_splits = CONFIG.training.kfold
@@ -808,11 +811,9 @@ if __name__ == "__main__":
 
         # Set up a fresh model at each fold
         model = set_up_model(CONFIG)
-        if torch.cuda.is_available():
+        if COMPILE_MODEL:
             model = torch.compile(model)  # Expected to speed up training
-            logger.debug("  L Model compiled")
-        else:
-            logger.debug("  L Torch did not compile the model")
+        logger.debug(f"  L Model {model} set up")
 
         # Set up optimizer
         # optimizer = torch.optim.Adam(
