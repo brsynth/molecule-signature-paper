@@ -335,6 +335,7 @@ def train(
         scaler: torch.GradScaler,
         data_loader: DataLoader,
         device: torch.device,
+        accumulate_grad: int = 1,
         log_interval: int = 100,
         logger: logging.Logger = logging.getLogger(__name__),
 ) -> float:
@@ -358,6 +359,13 @@ def train(
         DataLoader containing training data.
     device : torch.device
         Torch device.
+    accumulate_grad : int
+        Number of batches to accumulate gradients over (default: 1). Value of 1
+        means no accumulation.
+    logger : logging.Logger
+        Logger to use.
+    log_interval : int
+        Number of batches to wait before logging training status.
 
     Returns
     -------
@@ -365,7 +373,7 @@ def train(
         Average loss over the training data.
     """
     model.train()
-    total_loss = 0.
+    batch_losses = []  # Collect loss for each batch
     model.to(device)
 
     for batch_idx, batch in enumerate(data_loader):
@@ -416,7 +424,10 @@ def train(
                 logger.error(f"  L Loss is Inf at batch {batch_idx} - Stopping training")
                 break
 
-        # Back-propagation with mixed precision and gradient inspection
+            # Normalize the loss for gradient accumulation
+            loss /= accumulate_grad
+
+        # Back-propagation with mixed precision scaler
         scaler.scale(loss).backward()
 
         # Check for NaN and Inf values in the gradients
@@ -428,29 +439,21 @@ def train(
                 if torch.isinf(param.grad).any():
                     logger.error(f"  L Gradient for {name} is Inf")
 
-        # Update weights
-        scaler.step(optimizer)  # Update weights
-        scaler.update()  # Update the scale
+        # Update weights after accumulating gradients
+        if (batch_idx + 1) % accumulate_grad == 0:
+            scaler.step(optimizer)  # Update weights
+            scaler.update()  # Update the scale
+            scheduler.step()  # Update learning rate
+            optimizer.zero_grad()  # Reset gradients
 
-        # Legacy code without mixed precision
-        # loss.backward()  # Back-propagate
-        # optimizer.step()  # Update weights
-
-        # Update learning rate
-        scheduler.step()  # Update learning rate
-
-        # Log loss
-        total_loss += loss.item()  # Log loss
+        batch_losses.append(loss.item())  # Collect loss for the batch
 
         # Log progress
         if batch_idx != 0 and batch_idx % log_interval == 0:
-            logger.info(f"  L Batch {batch_idx:>5} / {len(data_loader)} - Loss: {loss.item():.4f}")
-
-    # Log loss for the whole epoch
-    avg_loss = total_loss / (batch_idx + 1)
+            logger.info(f"  L Batch {batch_idx:>5}/{len(data_loader)} - Loss: {loss.item():.4f}")
 
     # Return the average loss
-    return avg_loss
+    return sum(batch_losses) / len(batch_losses)
 
 
 def evaluate(
@@ -848,7 +851,7 @@ if __name__ == "__main__":
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer,
             max_lr=1e-3,  # Maximum learning rate
-            steps_per_epoch=len(train_loader),  # Number of batches per epoch
+            steps_per_epoch=len(train_loader) // CONFIG.training.accumulate_grad,  # Number of weight updates per epoch  # noqa
             epochs=CONFIG.training.epochs,  # Expected number of epochs
             pct_start=0.3  # Percentage of the cycle spent increasing the learning rate
         )
@@ -877,6 +880,8 @@ if __name__ == "__main__":
                 scaler=scaler,
                 data_loader=train_loader,
                 device=CONFIG.device,
+                accumulate_grad=CONFIG.training.accumulate_grad,
+                logger=logger,
                 log_interval=CONFIG.training.log_interval,
             )
 
