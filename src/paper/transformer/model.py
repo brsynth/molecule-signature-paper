@@ -109,7 +109,7 @@ class Transformer(nn.Module):
         # to the keys of the state_dict, we'll need to remove it to have the
         # same keys as the original state_dict.
         state_dict = {
-            key.replace('_orig_mod.', ''): value
+            key.replace("_orig_mod.", ""): value
             for key, value in state_dict.items()
         }
 

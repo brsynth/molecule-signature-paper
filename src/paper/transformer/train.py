@@ -411,7 +411,7 @@ def train(
 
             # Check for NaN
             if torch.isnan(loss) or torch.isinf(loss):
-                logger.error("  L Loss is NaN or Inf at batch {batch_idx} - Stopping training")
+                logger.error(f"  L Loss is NaN or Inf at batch {batch_idx} - Stopping training")
                 break
 
         # Back-propagation with mixed precision and gradient inspection
