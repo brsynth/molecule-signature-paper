@@ -33,7 +33,7 @@ model:
 # Training settings
 training:
     batch_size: 512
-    learning_rate: 0.0001
+    learning_rate: 0.001
     epochs: 20
     patience: 10
     max_grad_norm: 1.0
