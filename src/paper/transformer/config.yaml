@@ -32,11 +32,10 @@ model:
 
 # Training settings
 training:
+    epochs: 20
     batch_size: 512
     learning_rate: 0.001
-    epochs: 20
     patience: 10
-    max_grad_norm: 1.0
     log_interval: 20
     save_interval: 1
     kfold: 5
@@ -47,10 +46,10 @@ data:
     dataset_file: dataset/db_descriptors.tsv.gz
     spm_dir: spm
 
-# Dynmic information changed by scripts
-source: SMILES / SIGNATURE / ECFP
-target: SMILES / SIGNATURE / ECFP
-dataset: metanetx / emolecules
-base_path: ./data/metanetx / ./data/emolecules
-model_dir: models / model_v1 / ...
+# Dynamic information changed by scripts
+source: SMILES or SIGNATURE or ECFP
+target: SMILES or SIGNATURE or ECFP
+dataset: metanetx or emolecules
+base_path: ./data/metanetx or ./data/emolecules
+model_dir: models
 config: ./src/paper/transformer/config.yaml
