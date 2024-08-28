@@ -411,10 +411,9 @@ def train(
             )
 
             # Calculate loss
-            try:
-                loss = criterion(output.view(-1, output.size(-1)), target_output.view(-1))
-            except RuntimeError:  # view() is not supported for "cpu" torch.device
-                loss = criterion(output.reshape(-1, output.size(-1)), target_output.reshape(-1))
+            loss = criterion(output.view(-1, output.size(-1)), target_output.view(-1))
+            loss /= accumulate_grad  # Normalize the loss for gradient accumulation
+            # loss = criterion(output.reshape(-1, output.size(-1)), target_output.reshape(-1))
 
             # Check for NaN and Inf values in the loss
             if torch.isnan(loss):
@@ -430,17 +429,21 @@ def train(
         # Back-propagation with mixed precision scaler
         scaler.scale(loss).backward()
 
-        # Check for NaN and Inf values in the gradients
-        scaler.unscale_(optimizer)  # Unscales the gradients of optimizer's assigned params in-place
-        for name, param in model.named_parameters():
-            if param.grad is not None:
-                if torch.isnan(param.grad).any():
-                    logger.error(f"  L Gradient for {name} is NaN")
-                if torch.isinf(param.grad).any():
-                    logger.error(f"  L Gradient for {name} is Inf")
-
         # Update weights after accumulating gradients
         if (batch_idx + 1) % accumulate_grad == 0:
+
+            # Unscale (in place) the gradients of optimizer's assigned params
+            scaler.unscale_(optimizer)
+
+            # Check for NaN and Inf values in the gradients
+            for name, param in model.named_parameters():
+                if param.grad is not None:
+                    if torch.isnan(param.grad).any():
+                        logger.error(f"  L Gradient for {name} is NaN")
+                    if torch.isinf(param.grad).any():
+                        logger.error(f"  L Gradient for {name} is Inf")
+
+            # Perform the optimizer step and update the scale
             scaler.step(optimizer)  # Update weights
             scaler.update()  # Update the scale
             scheduler.step()  # Update learning rate
