@@ -804,6 +804,7 @@ if __name__ == "__main__":
             num_workers=NB_LOADER_WORKERS,
             pin_memory=True,  # Expected to speed up training
         )
+        logger.debug("  L DataLoaders set up")
 
         # Set up a fresh model at each fold
         model = set_up_model(CONFIG)
@@ -827,6 +828,7 @@ if __name__ == "__main__":
             eps=1e-8,
             weight_decay=0.01,
         )
+        logger.debug(f"  L Optimizer {optimizer} set up")
 
         # Set up scheduler
         # scheduler = torch.optim.lr_scheduler.CyclicLR(
@@ -842,12 +844,15 @@ if __name__ == "__main__":
             epochs=CONFIG.training.epochs,  # Expected number of epochs
             pct_start=0.3  # Percentage of the cycle spent increasing the learning rate
         )
+        logger.debug(f"  L Scheduler {scheduler} set up")
 
         # Set up mixed precision
         scaler = torch.GradScaler()
+        logger.debug(f"  L Gradient scaler {scaler} set up")
 
         # Set up loss function
         criterion = torch.nn.CrossEntropyLoss()
+        logger.debug(f"  L Loss function {criterion} set up")
 
         # Loop over epochs
         for epoch in range(CONFIG.training.epochs):
