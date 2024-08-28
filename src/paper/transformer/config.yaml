@@ -33,10 +33,10 @@ model:
 # Training settings
 training:
     epochs: 20
-    batch_size: 512
+    batch_size: 16
     learning_rate: 0.001
     patience: 10
-    log_interval: 20
+    log_interval: 10
     save_interval: 1
     kfold: 5
     seed: 42
