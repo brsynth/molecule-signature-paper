@@ -430,7 +430,7 @@ def train(
         scaler.scale(loss).backward()
 
         # Update weights after accumulating gradients
-        if (batch_idx + 1) % accumulate_grad == 0:
+        if ((batch_idx + 1) % accumulate_grad == 0) or ((batch_idx + 1) == len(data_loader)):
 
             # Unscale (in place) the gradients of optimizer's assigned params
             scaler.unscale_(optimizer)
@@ -455,13 +455,6 @@ def train(
         # Log progress
         if batch_idx != 0 and batch_idx % log_interval == 0:
             logger.info(f"  L Batch {batch_idx:>5}/{len(data_loader)} - Loss: {loss.item():.4f}")
-
-    # Look for remaining gradients to be updated
-    if (batch_idx + 1) % accumulate_grad != 0:
-        scaler.step(optimizer)
-        scaler.update()
-        scheduler.step()
-        optimizer.zero_grad
 
     # Return the average loss
     return sum(batch_losses) / len(batch_losses)
@@ -869,10 +862,14 @@ if __name__ == "__main__":
         # )
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer,
-            max_lr=1e-3,  # Maximum learning rate
-            steps_per_epoch=len(train_loader) // CONFIG.training.accumulate_grad,  # Number of weight updates per epoch  # noqa
-            epochs=CONFIG.training.epochs,  # Expected number of epochs
-            pct_start=0.3  # Percentage of the cycle spent increasing the learning rate
+            # Maximum learning rate
+            max_lr=1e-3,
+            # Total number of gradient updates
+            steps_per_epoch=math.ceil(len(train_loader) / CONFIG.training.accumulate_grad),
+            # Expected number of epochs
+            epochs=CONFIG.training.epochs,
+            # Percentage of the cycle spent increasing the learning rate
+            pct_start=0.3,
         )
         logger.debug(f"  L Scheduler {scheduler} set up")
 
