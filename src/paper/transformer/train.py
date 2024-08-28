@@ -766,7 +766,7 @@ if __name__ == "__main__":
         file_path=data_path,
         col_idx=(src_col_idx, tgt_col_idx),
         sp_models=(src_sp_model, tgt_sp_model),
-        max_length=(None, None),  # Will be set to 95th percentile
+        max_lengths=(None, None),  # Will be set to 95th percentile
         bos_idx=CONFIG.tokenizer.BOS_IDX,
         eos_idx=CONFIG.tokenizer.EOS_IDX,
     )
