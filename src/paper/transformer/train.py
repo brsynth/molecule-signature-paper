@@ -423,9 +423,6 @@ def train(
             logger.error(f"  L Loss is Inf at batch {batch_idx} - Stopping training")
             break
 
-        # Normalize the loss for gradient accumulation
-        loss /= accumulate_grad
-
         # Back-propagation with mixed precision scaler
         scaler.scale(loss).backward()
 
