@@ -769,6 +769,14 @@ if __name__ == "__main__":
 
     # Debug values ------------------------------
     DATASET_LEN = len(dataset)
+
+    # CUDA dependent parameters ---------------
+    if CONFIG.device.type == "cuda" and torch.cuda.is_available():
+        PIN_MEMORY = True
+        logger.info("Memory pinning will be used")
+    else:
+        PIN_MEMORY = False
+
     if (
         CONFIG.device.type == "cuda" and
         torch.cuda.is_available() and
@@ -806,16 +814,16 @@ if __name__ == "__main__":
             batch_size=CONFIG.training.batch_size,
             shuffle=False,  # Already shuffled by KFold
             collate_fn=collate_fn,
-            pin_memory=True,  # Expected to speed up training
             num_workers=CONFIG.num_loader_workers,
+            pin_memory=PIN_MEMORY,
         )
         val_loader = DataLoader(
             dataset=val_subset,
             batch_size=CONFIG.training.batch_size,
             shuffle=False,  # No need to shuffle
             collate_fn=collate_fn,
-            pin_memory=True,  # Expected to speed up training
             num_workers=CONFIG.num_loader_workers,
+            pin_memory=PIN_MEMORY,
         )
         logger.debug("  L DataLoaders set up")
 
