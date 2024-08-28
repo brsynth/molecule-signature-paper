@@ -678,6 +678,22 @@ if __name__ == "__main__":
         help="Target type (default: %(default)s); choices: {%(choices)s})",
     )
     parser.add_argument(
+        "--source_max_length",
+        metavar="INT",
+        type=int,
+        default=None,
+        help="Maximum length of source sequences (default: %(default)s). If None, "
+             "the 95th percentile of the source sequences will be used.",
+    )
+    parser.add_argument(
+        "--target_max_length",
+        metavar="INT",
+        type=int,
+        default=None,
+        help="Maximum length of target sequences (default: %(default)s). If None, "
+             "the 95th percentile of the target sequences will be used.",
+    )
+    parser.add_argument(
         "--dataset",
         metavar="DATASET",
         type=str,
@@ -764,9 +780,18 @@ if __name__ == "__main__":
 
     dataset = TSVDataset(
         file_path=data_path,
-        col_idx=(src_col_idx, tgt_col_idx),
-        sp_models=(src_sp_model, tgt_sp_model),
-        max_lengths=(None, None),  # Will be set to 95th percentile
+        col_idx=(
+            src_col_idx,
+            tgt_col_idx,
+        ),
+        sp_models=(
+            src_sp_model,
+            tgt_sp_model,
+        ),
+        max_lengths=(
+            CONFIG.source_max_length,
+            CONFIG.target_max_length,
+        ),
         bos_idx=CONFIG.tokenizer.BOS_IDX,
         eos_idx=CONFIG.tokenizer.EOS_IDX,
     )
