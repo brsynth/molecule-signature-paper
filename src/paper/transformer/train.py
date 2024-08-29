@@ -376,7 +376,7 @@ def train(
     optimizer.zero_grad()
     model.to(device)
     total_loss = 0.
-    eff_batch_idx = 0  # Effective batch index
+    eff_batch_idx = -1  # Effective batch index
     total_eff_batches = len(data_loader) // accumulate_grad
 
     for batch_idx, batch in enumerate(data_loader):
@@ -457,14 +457,14 @@ def train(
             total_loss += loss.item()
 
             # Log progress
-            if batch_idx != 0 and batch_idx % log_interval == 0:
+            if eff_batch_idx != 0 and eff_batch_idx % log_interval == 0:
                 logger.info(
                     f"  L Batch {eff_batch_idx:>5}/{total_eff_batches} -- "
                     f"Loss: {loss.item():.4f}"
                 )
 
     # Return the average loss
-    return total_loss / (batch_idx + 1)
+    return total_loss / (eff_batch_idx + 1)
 
 
 def evaluate(
