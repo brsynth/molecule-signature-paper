@@ -608,11 +608,11 @@ def save_checkpoint(
 
 def load_checkpoint(
         model: torch.nn.Module,
-        optimizer: torch.optim.Optimizer,
-        scheduler: torch.optim.lr_scheduler._LRScheduler,
-        scaler: torch.GradScaler,
         load_path: str | Path,
         device: torch.device,
+        optimizer: torch.optim.Optimizer = None,
+        scheduler: torch.optim.lr_scheduler._LRScheduler = None,
+        scaler: torch.GradScaler = None,
 ) -> Tuple[
     torch.nn.Module,
     torch.optim.Optimizer,
@@ -650,10 +650,22 @@ def load_checkpoint(
         Loaded loss.
     """
     checkpoint = torch.load(load_path, map_location=device, weights_only=True)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-    scaler.load_state_dict(checkpoint['scaler_state_dict'])
+
+    # Load the model weights
+    # Eventually remove the '_orig_mod.' prefix
+    state_dict = checkpoint['model_state_dict']
+    state_dict = {
+        key.replace("_orig_mod.", ""): value
+        for key, value in state_dict.items()
+    }
+    model.load_state_dict(state_dict)
+
+    if optimizer is not None:
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    if scheduler is not None:
+        scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+    if scaler is not None:
+        scaler.load_state_dict(checkpoint['scaler_state_dict'])
     epoch = checkpoint['epoch']
     loss = checkpoint['loss']
 
