@@ -75,7 +75,7 @@ class TSVDataset_LOWMEM(Dataset):
             self,
             file_path: str | Path,
             col_idx: tuple[int, int],
-            sp_models: tuple[spm.SentencePieceProcessor, spm.SentencePieceProcessor],
+            token_models: tuple[spm.SentencePieceProcessor, spm.SentencePieceProcessor],
             max_length: int = None,
             bos_idx: int = 1,
             eos_idx: int = 2,
@@ -85,9 +85,9 @@ class TSVDataset_LOWMEM(Dataset):
             "source": col_idx[0],
             "target": col_idx[1],
         }
-        self.sp_models = {
-            "source": sp_models[0],
-            "target": sp_models[1],
+        self.token_models = {
+            "source": token_models[0],
+            "target": token_models[1],
         }
         self.offsets = self._index_file()
         self.max_length = max_length
@@ -120,8 +120,8 @@ class TSVDataset_LOWMEM(Dataset):
             target = line[self.col_indexes["target"]]
 
             # Tokenization
-            source_tokens = self.sp_models["source"].encode_as_ids(source)
-            target_tokens = self.sp_models["target"].encode_as_ids(target)
+            source_tokens = self.token_models["source"].encode_as_ids(source)
+            target_tokens = self.token_models["target"].encode_as_ids(target)
 
             # Adding BOS and EOS tokens
             source_tokens = self._add_beos_indexes(source_tokens)
@@ -142,7 +142,7 @@ class TSVDataset(Dataset):
             self,
             file_path: str | Path,
             col_idx: tuple[int, int],
-            sp_models: tuple[spm.SentencePieceProcessor, spm.SentencePieceProcessor],
+            token_models: tuple[spm.SentencePieceProcessor, spm.SentencePieceProcessor],
             max_lengths: tuple[int, int] = (100, None),
             bos_idx: int = 1,
             eos_idx: int = 2,
@@ -156,9 +156,9 @@ class TSVDataset(Dataset):
             "source": max_lengths[0],
             "target": max_lengths[1],
         }
-        self.sp_models = {
-            "source": sp_models[0],
-            "target": sp_models[1],
+        self.token_models = {
+            "source": token_models[0],
+            "target": token_models[1],
         }
         self.data = self._load_data()
         if self.max_lengths["source"] is None:
@@ -205,8 +205,8 @@ class TSVDataset(Dataset):
         source, target = self.data[idx]
 
         # Tokenization
-        source_tokens = self.sp_models["source"].encode_as_ids(source)
-        target_tokens = self.sp_models["target"].encode_as_ids(target)
+        source_tokens = self.token_models["source"].encode_as_ids(source)
+        target_tokens = self.token_models["target"].encode_as_ids(target)
 
         # Adding BOS and EOS tokens
         source_tokens = self._add_beos_indexes(source_tokens)
@@ -222,7 +222,7 @@ class TSVDataset(Dataset):
         return len(self.data)
 
 
-def load_sp_models(
+def load_token_models(
         CONFIG: SimpleNamespace,
         spm_dir: str | Path = None,
 ) -> Tuple[
@@ -772,7 +772,7 @@ if __name__ == "__main__":
 
     # SentencePiece models ----------------------
     spm_dir = Path(base_path) / "spm"
-    src_sp_model, tgt_sp_model = load_sp_models(CONFIG, spm_dir)
+    src_token_model, tgt_token_model = load_token_models(CONFIG, spm_dir)
 
     # Set device --------------------------------
     CONFIG.device = torch.device(CONFIG.device)
@@ -803,9 +803,9 @@ if __name__ == "__main__":
             src_col_idx,
             tgt_col_idx,
         ),
-        sp_models=(
-            src_sp_model,
-            tgt_sp_model,
+        token_models=(
+            src_token_model,
+            tgt_token_model,
         ),
         max_lengths=(
             CONFIG.source_max_length,

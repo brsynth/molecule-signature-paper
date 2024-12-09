@@ -55,13 +55,10 @@ class Transformer(nn.Module):
         tgt_key_padding_mask: torch.Tensor,
         memory_key_padding_mask: torch.Tensor,
     ) -> torch.Tensor:
+
         # Embedding + Position Encoding
-        src_embedding = self.positional_encoding(
-            self.src_token_embedding(src)
-        )  # 3D tensor (batch_size, src_len, d_model)  # noqa
-        tgt_embedding = self.positional_encoding(
-            self.tgt_token_embedding(tgt)
-        )  # 3D tensor (batch_size, tgt_len, d_model)  # noqa
+        src_embedding = self.positional_encoding(self.src_token_embedding(src))  # 3D tensor (batch_size, src_len, d_model)  # noqa
+        tgt_embedding = self.positional_encoding(self.tgt_token_embedding(tgt))  # 3D tensor (batch_size, tgt_len, d_model)  # noqa
 
         # Transformer
         outs = self.transformer(
