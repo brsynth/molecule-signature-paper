@@ -1,2 +1,2 @@
-# Allow lines to be as long as 120 characters.
+# Allow lines to be as long as 100 characters.
 line-length = 100
