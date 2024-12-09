@@ -6,5 +6,18 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "GettingMoleculesFromFingerprints"
+version = "2.0.0"
+description = "Code supporting the paper 'Getting Molecules from their Fingerprints: Generative Models vs. Deterministic Enumeration'"
+readme = "README.md"
+license = {text = "MIT"}
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "$version"
+version_type = "semver2"
+version_provider = "pep621"
+
 [tool.black]
 line-length = 100
