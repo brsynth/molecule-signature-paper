@@ -1,3 +1,17 @@
+## Unreleased
+
+## 2.0.2 (2024-12-10)
+
+### Fix
+
+- main instead of master branch name
+
+## 2.0.1 (2024-12-10)
+
+### Fix
+
+- **dataset**: remove unused code
+
 ## 2.0.0 (2024-12-09)
 
 ### Feat
