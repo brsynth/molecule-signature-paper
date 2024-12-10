@@ -3,9 +3,7 @@ name: Bump version
 on:
   push:
     branches:
-      - main
-    tags:
-      - "*"
+      - yolo
 
 jobs:
   bump_version:

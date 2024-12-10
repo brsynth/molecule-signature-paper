@@ -1,0 +1,19 @@
+name: Create release
+
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+jobs:
+  relase:
+    name: Create release
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out
+      uses: actions/checkout@v4
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        body_path: CHANGELOG.md
