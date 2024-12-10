@@ -5,7 +5,7 @@ import logging
 import yaml
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Generator, List, Optional, Iterator
+from typing import List, Optional, Iterator
 
 import coloredlogs
 from rdkit import Chem
