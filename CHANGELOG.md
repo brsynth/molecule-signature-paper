@@ -1,4 +1,14 @@
-## Unreleased
+## 2.0.4 (2024-12-10)
+
+### Fix
+
+- update changelog on version bump
+
+## 2.0.3 (2024-12-10)
+
+### Fix
+
+- attempt to trigger GA
 
 ## 2.0.2 (2024-12-10)
 
