@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "GettingMoleculesFromFingerprints"
-version = "2.0.2"
+version = "2.0.3"
 description = "Code supporting the paper 'Getting Molecules from their Fingerprints: Generative Models vs. Deterministic Enumeration'"
 readme = "README.md"
 license = {text = "MIT"}
