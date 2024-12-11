@@ -61,7 +61,12 @@ def _fingerprints(smiles):
     smi = get_smiles(mol)
     sig = get_signature(mol, radius=2, nbits=2048)
     ecfp = get_ecfp(mol, radius=2, nbits=2048)
-    return smi, sig, ecfp
+    return (
+        smi,
+        sig.to_string(morgans=False),
+        ecfp,
+        sig.to_string(morgans=True),
+    )
 
 
 def _get_mol_features(smiles: str) -> Dict[str, Any]:
@@ -219,8 +224,8 @@ def compute_fingerprints(CONFIG: Config) -> int:
         else:
             compute = False
             msg = (
-                "  L skipped, already exists, use --descriptors_redo to "
-                "recompute descriptors or --descriptors_resume to resume "
+                "  L skipped, already exists, use --fingerprints_redo to "
+                "recompute descriptors or --fingerprints_resume to resume "
                 "computation"
             )
             logger.info(msg)
@@ -275,7 +280,7 @@ def compute_fingerprints(CONFIG: Config) -> int:
                 df_chunk.rename(columns={"SMILES": "SMILES_0"}, inplace=True)
 
                 # Compute descriptors in parallel
-                df_chunk[["SMILES", "SIGNATURE", "ECFP"]] = df_chunk.parallel_apply(  # noqa E501
+                df_chunk[["SMILES", "SIGNATURE", "ECFP", "SIGNATURE_MORGANS"]] = df_chunk.parallel_apply(  # noqa E501
                     lambda x: _fingerprints(x["SMILES_0"]), axis=1, result_type="expand"
                 )
 

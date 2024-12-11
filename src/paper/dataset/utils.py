@@ -54,8 +54,7 @@ def get_smiles(mol: Chem.Mol, clear_aam: bool = True, clear_isotope: bool = True
 
 def get_signature(mol: Chem.Mol, radius: int, nbits: int) -> str:
     try:
-        mol_sig = MoleculeSignature(mol, radius=radius, nbits=nbits)
-        return mol_sig.to_string(morgans=False)
+        return MoleculeSignature(mol, radius=radius, nbits=nbits)
 
     except Exception as err:
         logger.error(f"Error processing molecule: {Chem.MolToSmiles(mol)}")
