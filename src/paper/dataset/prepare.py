@@ -257,7 +257,7 @@ def compute_fingerprints(CONFIG: Config) -> int:
 
             # Write header if needed
             if compute and not resume:
-                writer.write("ID\tSMILES_0\tSMILES\tSIGNATURE\tECFP\n")
+                writer.write("ID\tSMILES_0\tSMILES\tSIGNATURE\tECFP\tSIGNATURE_MORGANS\n")
 
             # Show progress bar
             if CONFIG.show_progress:
