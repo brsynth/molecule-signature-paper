@@ -34,7 +34,14 @@ def setup_logger(logger: logging.Logger = logging.getLogger(), level: int = logg
 def assign_stereo(mol: Chem.Mol) -> Chem.Mol:
     options = StereoEnumerationOptions(onlyUnassigned=True, unique=True)
     stereoisomers = EnumerateStereoisomers(mol, options=options)  # returns a generator
-    return next(stereoisomers, None)  # None is a default if the generator is empty
+
+    new_mol = next(stereoisomers, None)  # None is a default if the generator is empty
+    if new_mol is None:
+        logger.warning(f"No stereoisomer found for molecule {Chem.MolToSmiles(mol)}")
+        return mol
+
+    Chem.SanitizeMol(new_mol)
+    return new_mol
 
 
 def get_smiles(mol: Chem.Mol, clear_aam: bool = True, clear_isotope: bool = True) -> str:
