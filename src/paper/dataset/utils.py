@@ -45,14 +45,22 @@ def assign_stereo(mol: Chem.Mol) -> Chem.Mol:
 
 
 def get_smiles(mol: Chem.Mol, clear_aam: bool = True, clear_isotope: bool = True) -> str:
+    _mol = Chem.Mol(mol)  # Copy the molecule to avoid modifying the original
     try:
         if clear_aam:
-            for atom in mol.GetAtoms():
+            for atom in _mol.GetAtoms():
                 atom.SetAtomMapNum(0)
+
         if clear_isotope:
-            for atom in mol.GetAtoms():
+            for atom in _mol.GetAtoms():
                 atom.SetIsotope(0)
-        return Chem.MolToSmiles(mol)
+
+        if clear_aam or clear_isotope:
+            # Get rid of eventual excplicit Hs that might be not useful anymore
+            _mol = Chem.RemoveHs(_mol)
+
+        return Chem.MolToSmiles(_mol)
+
     except Exception as err:
         logger.error(f"Error processing molecule: {Chem.MolToSmiles(mol)}")
         logger.error(err)
