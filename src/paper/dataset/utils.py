@@ -6,6 +6,7 @@ import yaml
 from pathlib import Path
 from types import SimpleNamespace
 from typing import List, Optional, Iterator
+from urllib.request import Request, urlopen
 
 import coloredlogs
 from rdkit import Chem
@@ -16,6 +17,7 @@ from signature.Signature import MoleculeSignature
 
 
 # Logging -----------------------------------------------------------------------------------------
+
 logger = logging.getLogger(__name__)
 
 
@@ -31,6 +33,7 @@ def setup_logger(logger: logging.Logger = logging.getLogger(), level: int = logg
 
 
 # Fingerprint section -----------------------------------------------------------------------------
+
 def assign_stereo(mol: Chem.Mol) -> Chem.Mol:
     options = StereoEnumerationOptions(onlyUnassigned=True, unique=True)
     stereoisomers = EnumerateStereoisomers(mol, options=options)  # returns a generator
@@ -90,6 +93,7 @@ def get_ecfp(mol: Chem.Mol, radius: int, nbits: int) -> str:
 
 
 # Tokenize section --------------------------------------------------------------------------------
+
 def pretokenizer(fp: str, pattern: re.Pattern) -> str:
     """General pretokenizer for a string representation of a fingerprint."""
     # Extract tokens
@@ -341,3 +345,19 @@ class CustomDataset():
                 chunk = []
         if chunk:
             yield chunk
+
+
+# System section ----------------------------------------------------------------------------------
+
+def url_download(url: str, path: str) -> None:
+    try:
+        with urlopen(Request(url)) as fod:
+            with open(path, "wb") as dst:
+                while True:
+                    chunk = fod.read(2**10)
+                    if chunk:
+                        dst.write(chunk)
+                    else:
+                        break
+    except Exception as e:
+        print(str(e))

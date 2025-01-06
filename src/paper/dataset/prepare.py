@@ -28,6 +28,7 @@ from paper.dataset.utils import (
     get_signature,
     get_ecfp,
     CustomDataset,
+    url_download,
 )
 from paper.learning.config import Config
 
@@ -99,7 +100,7 @@ def download_dataset(config: Config) -> int:
     if CONFIG.download_file.exists() and not CONFIG.download_again:
         logger.info("  L skipped, already exists, use --download_again to download again")
     else:
-        cmd.url_download(url=CONFIG.download_url, path=CONFIG.download_file)
+        url_download(url=CONFIG.download_url, path=CONFIG.download_file)
         logger.info("  L done")
 
     return 0
