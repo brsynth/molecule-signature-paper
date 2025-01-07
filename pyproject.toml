@@ -7,11 +7,29 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "GettingMoleculesFromFingerprints"
+name = "signature-paper"
 version = "2.0.4"
 description = "Code supporting the paper 'Getting Molecules from their Fingerprints: Generative Models vs. Deterministic Enumeration'"
-readme = "README.md"
-license = {text = "MIT"}
+authors = [
+  {name = "Thomas Duigou", email = "thomas.duigou@inrae.fr"},
+  {name = "Jean-Loup Faulon", email = "thomas.duigou@inrae.fr"},
+  {name = "Guillaume Gricourt", email = "guillaume.gricourt@inrae.fr"},
+  {name = "Philippe Meyer", email = "philippe.meyer@inrae.fr"},
+]
+readme = {file = "README.md", content-type = "text/markdown"}
+license = {text = "MIT License"}
+keywords = [
+    "chemistry",
+    "chemoinformatics",
+    "deterministic enumeration",
+    "fingerprint",
+    "generative model",
+    "molecular generation",
+    "signature",
+]
+
+[project.urls]
+Repository = "https://github.com/brsynth/signature-paper"
 
 [tool.commitizen]
 name = "cz_conventional_commits"
