@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "signature-paper"
-version = "2.0.4"
+version = "2.1.0"
 description = "Code supporting the paper 'Getting Molecules from their Fingerprints: Generative Models vs. Deterministic Enumeration'"
 authors = [
   {name = "Thomas Duigou", email = "thomas.duigou@inrae.fr"},

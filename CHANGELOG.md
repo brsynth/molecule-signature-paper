@@ -1,3 +1,22 @@
+## 2.1.0 (2025-01-07)
+
+### Feat
+
+- **prepare**: outputs additional column signature_morgans
+
+### Fix
+
+- **prepare**: remove deprecated import
+- **get_smiles**: remove superflous Hs
+- **prepare**: sanitize molecule after stereo-isomer enumeration
+- **prepare**: add missing header
+
+### Refactor
+
+- remove old code
+- **.env**: ignore local env file
+- erase old code
+
 ## 2.0.4 (2024-12-10)
 
 ### Fix
