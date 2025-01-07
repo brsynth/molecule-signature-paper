@@ -18,7 +18,6 @@ from rdkit.Chem.rdMolDescriptors import CalcNumHeavyAtoms, CalcNumRings
 from sklearn.model_selection import KFold
 
 from signature.utils import mol_from_smiles, mol_filter
-from retrosig.utils import cmd
 from paper.dataset.utils import (
     setup_logger,
     log_config,
