@@ -1,4 +1,4 @@
-name: retrosig
+name: signature-paper
 channels:
   - pytorch
   - conda-forge
@@ -18,9 +18,9 @@ dependencies:
   - pytorch::torchaudio
   - lightning
   - tensorboard
-  # Dev
+  # Dev ---------------------
   - jupyterlab
-  # Deps
+  # Deps --------------------
   - conda-build
   - pytest
   - pip

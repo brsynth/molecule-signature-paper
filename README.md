@@ -3,8 +3,8 @@
 ## Install
 
 ```bash
-conda env create -f recipes/workflow.yaml
-conda activate retrosig
+conda env create -f recipes/environment.yaml
+conda activate signature-paper
 pip install --no-deps -e .
 ```
 
@@ -12,7 +12,7 @@ Since the signature is not yet publicly available, the signature code has to be
 installed from the source code:
 
 ```bash
-conda activate retrosig
+conda activate signature-paper
 git clone git@github.com:brsynth/signature.git lib/signature  # Credentials required
 pushd lib/signature
 pip install --no-deps -e .
