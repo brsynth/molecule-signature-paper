@@ -243,6 +243,10 @@ def main():
     # Save results as pickle
     results.to_pickle("results.pkl")
 
+    # Print results if verbosity is DEBUG
+    if logger.level == logging.DEBUG:
+        print(results)
+
 
 if __name__ == "__main__":
     main()
