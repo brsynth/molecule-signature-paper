@@ -7,6 +7,10 @@ import pandas as pd
 import lightning as L
 from torch.utils.data import DataLoader
 
+from rdkit import RDLogger  # for disabling RDKit warnings
+from rdkit.Chem import DataStructs, MolToSmiles
+from rdkit.Chem.AllChem import GetMorganGenerator
+
 from signature.utils import mol_from_smiles
 from paper.learning.config import Config
 from paper.learning.data import ListDataset, collate_fn_simple
@@ -20,15 +24,12 @@ from paper.dataset.utils import (
 # Logging -----------------------------------------------------------------------------------------
 logger = logging.getLogger()
 
+RDLogger.DisableLog("rdApp.error")
+RDLogger.DisableLog('rdApp.warning')
+
 
 # Utils -------------------------------------------------------------------------------------------
 def tanimoto(fp1, fp2):
-    # Load packages
-    try:
-        from rdkit.Chem import DataStructs
-    except ImportError:
-        raise ImportError("Please install the signature package to use this function.")
-
     # Get rid of None values
     if fp1 is None or fp2 is None:
         return None
@@ -38,29 +39,35 @@ def tanimoto(fp1, fp2):
 
 
 def mol_to_ecfp(mol):
-    # Load packages
-    try:
-        from rdkit import RDLogger
-        from rdkit.Chem.AllChem import GetMorganGenerator
-    except ImportError:
-        raise ImportError("Please install the signature package to use this function.")
-
-    # Disable RDKit warnings
-    RDLogger.DisableLog("rdApp.error")
-    RDLogger.DisableLog('rdApp.warning')
-
-    # Convert to ECFP
+    # Get rid of None values
     if mol is None:
         ecfp = None
+
     else:
         try:
             ecfp = GetMorganGenerator(radius=2, fpSize=2048).GetCountFingerprint(mol)
             # ecfp = [[idx] * count for idx, count in ecfp.GetNonzeroElements().items()]
             # ecfp = [idx for sublist in ecfp for idx in sublist]
+
         except Exception:
             ecfp = None
 
     return ecfp
+
+
+def mol_to_smiles(mol):
+    # Get rid of None values
+    if mol is None:
+        smiles = None
+
+    else:
+        try:
+            smiles = MolToSmiles(mol)
+
+        except Exception:
+            smiles = None
+
+    return smiles
 
 
 # Args --------------------------------------------------------------------------------------------
