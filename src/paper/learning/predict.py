@@ -256,7 +256,7 @@ def main():
 
     # Print results if verbosity is DEBUG
     if logger.level == logging.DEBUG:
-        print(results)
+        print(results[["Seq ID", "Prediction Log Prob", "Target match", "Tanimoto", "Canonic match"]])
 
 
 if __name__ == "__main__":
