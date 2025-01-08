@@ -684,441 +684,30 @@ class TransformerModel(pl.LightningModule):
 
         return results  # (batch_size, 1, tgt_len)
 
-    def _beam_search_single_sequence_NEW_DEDUP(
+    def _beam_search_single_sequence_V5(
         self,
         source: torch.Tensor,
         src_mask: torch.Tensor,
         src_padding_mask: torch.Tensor,
     ) -> List[Tuple[torch.Tensor, float]]:
-        """Beam search pour générer des séquences cibles pour une séquence source unique.
-
-        Parameters
-        ----------
-        source : torch.Tensor
-            Séquence source.
-        src_mask : torch.Tensor
-            Masque source.
-        src_padding_mask : torch.Tensor
-            Masque de padding source.
-
-        Returns
-        -------
-        List[Tuple[torch.Tensor, float]]
-            Liste des séquences cibles générées et leurs scores.
         """
-        # Obtenir les paramètres de décodage
-        msg = "Les paramètres de décodage ne sont pas configurés. Appelez d'abord `set_decoding_strategy`."
-        try:
-            max_length = self.max_length
-            beam_size = self.beam_size
-        except AttributeError:
-            raise ValueError(msg)
-
-        # Embedding de la source
-        src_embedding = self.positional_encoding(self.src_token_embedding(source))  # (1, src_len, dim_model)
-        memory = self.transformer.encoder(
-            src_embedding, mask=src_mask, src_key_padding_mask=src_padding_mask
-        )  # (1, src_len, dim_model)
-
-        # Initialiser le faisceau avec le token BOS
-        beam_seqs = torch.full(
-            (1, 1),
-            fill_value=self.token_bos_idx,
-            dtype=torch.long,
-            device=self.device
-        )  # (1, 1)
-        beam_scores = torch.zeros(1, device=self.device)  # (1,)
-        beam_is_finished = torch.zeros(1, dtype=torch.bool, device=self.device)  # (1,)
-
-        completed_sequences = []
-
-        for _ in range(1, max_length):
-            # Préparer les embeddings et masques pour toutes les séquences du faisceau
-            tgt_embedding = self.positional_encoding(self.tgt_token_embedding(beam_seqs))  # (beam_size, seq_len, dim_model)
-            tgt_mask = generate_square_subsequent_mask(beam_seqs.size(1)).to(self.device)  # (seq_len, seq_len)
-
-            # Étendre la mémoire et les masques pour correspondre à la taille du faisceau
-            expanded_memory = memory.expand(beam_seqs.size(0), -1, -1)  # (beam_size, src_len, dim_model)
-            expanded_src_padding_mask = src_padding_mask.expand(beam_seqs.size(0), -1)  # (beam_size, src_len)
-
-            # Décoder les séquences cibles en parallèle
-            output = self.transformer.decoder(
-                tgt=tgt_embedding,
-                memory=expanded_memory,
-                tgt_mask=tgt_mask,
-                memory_key_padding_mask=expanded_src_padding_mask
-            )  # (beam_size, seq_len, dim_model)
-
-            # Générer les logits pour le dernier token de chaque séquence
-            logits = self.generator(output[:, -1, :])  # (beam_size, vocab_size)
-            log_probs = torch.log_softmax(logits, dim=-1)  # (beam_size, vocab_size)
-
-            # Masquer les log_probs pour les séquences terminées
-            log_probs[beam_is_finished, :] = -float('inf')
-            log_probs[beam_is_finished, self.token_eos_idx] = 0
-
-            # Obtenir les top-k tokens et leurs log_probabilités pour chaque séquence du faisceau
-            topk_log_probs, topk_indices = log_probs.topk(beam_size, dim=-1)  # (beam_size, beam_size)
-
-            # Calculer les scores des candidats
-            candidate_scores = (beam_scores.unsqueeze(1) + topk_log_probs).view(-1)  # (beam_size * beam_size)
-
-            # Créer les séquences candidates
-            beam_seqs_repeat = beam_seqs.unsqueeze(1).repeat(1, beam_size, 1)  # (beam_size, beam_size, seq_len)
-            candidate_tokens = topk_indices.unsqueeze(2)  # (beam_size, beam_size, 1)
-            candidate_seqs = torch.cat([beam_seqs_repeat, candidate_tokens], dim=2).view(-1, beam_seqs.size(1)+1)  # (beam_size * beam_size, seq_len + 1)
-
-            # Mettre à jour beam_is_finished pour les candidats
-            candidate_is_finished = beam_is_finished.unsqueeze(1).repeat(1, beam_size).view(-1) | (candidate_tokens.view(-1) == self.token_eos_idx)
-
-            # Éliminer les duplicats
-            # Convertir les séquences candidates en tuples pour déduplication
-            seqs_tuple = [tuple(seq.tolist()) for seq in candidate_seqs]
-            seq_to_index = {}
-            for idx, seq in enumerate(seqs_tuple):
-                if seq not in seq_to_index or candidate_scores[idx] > candidate_scores[seq_to_index[seq]]:
-                    seq_to_index[seq] = idx
-
-            # Obtenir les indices des séquences uniques
-            unique_indices = list(seq_to_index.values())
-            unique_candidate_seqs = candidate_seqs[unique_indices]
-            unique_candidate_scores = candidate_scores[unique_indices]
-            unique_candidate_is_finished = candidate_is_finished[unique_indices]
-
-            # Sélectionner les top-k séquences basées sur les scores
-            if len(unique_candidate_scores) > beam_size:
-                topk_scores, topk_indices = torch.topk(unique_candidate_scores, beam_size)
-                beam_seqs = unique_candidate_seqs[topk_indices]
-                beam_scores = topk_scores
-                beam_is_finished = unique_candidate_is_finished[topk_indices]
-            else:
-                beam_seqs = unique_candidate_seqs
-                beam_scores = unique_candidate_scores
-                beam_is_finished = unique_candidate_is_finished
-
-            # Ajouter les séquences terminées aux séquences complétées
-            finished_indices = beam_is_finished.nonzero(as_tuple=False).view(-1)
-            if len(finished_indices) > 0:
-                for idx in finished_indices:
-                    seq = beam_seqs[idx]
-                    score = beam_scores[idx].item()
-                    completed_sequences.append((seq, score))
-
-            # Enlever les séquences terminées du faisceau
-            incomplete_indices = (beam_is_finished == 0).nonzero(as_tuple=False).view(-1)
-            if len(incomplete_indices) == 0:
-                break  # Toutes les séquences sont terminées
-
-            beam_seqs = beam_seqs[incomplete_indices]
-            beam_scores = beam_scores[incomplete_indices]
-            beam_is_finished = beam_is_finished[incomplete_indices]
-
-        # Si aucune séquence n'est complétée, utiliser les séquences du faisceau actuel
-        if not completed_sequences:
-            completed_sequences = [(beam_seqs[i], beam_scores[i].item()) for i in range(beam_seqs.size(0))]
-
-        # Trier les séquences complétées par score décroissant
-        completed_sequences.sort(key=lambda x: x[1], reverse=True)
-
-        # Retourner les top-k séquences complétées
-        return completed_sequences[:beam_size]
-
-    def _beam_search_single_sequence_NEW(
-        self,
-        source: torch.Tensor,
-        src_mask: torch.Tensor,
-        src_padding_mask: torch.Tensor,
-    ) -> List[Tuple[torch.Tensor, float]]:
-        """Beam search pour générer des séquences cibles pour une séquence source unique.
+        Beam search for generating target sequences for a single source sequence.
 
         Parameters
         ----------
         source : torch.Tensor
-            Séquence source.
+            Source sequence: shape (1, src_len).
         src_mask : torch.Tensor
-            Masque source.
+            Source mask (ex: (src_len, src_len)) or None.
         src_padding_mask : torch.Tensor
-            Masque de padding source.
-
-        Returns
-        -------
-        List[Tuple[torch.Tensor, float]]
-            Liste des séquences cibles générées et leurs scores.
-        """
-        # Obtenir les paramètres de décodage
-        msg = "Les paramètres de décodage ne sont pas configurés. Appelez d'abord `set_decoding_strategy`."
-        try:
-            max_length = self.max_length
-            beam_size = self.beam_size
-        except AttributeError:
-            raise ValueError(msg)
-
-        # Embedding de la source
-        src_embedding = self.positional_encoding(self.src_token_embedding(source))  # (1, src_len, dim_model)
-        memory = self.transformer.encoder(
-            src_embedding, mask=src_mask, src_key_padding_mask=src_padding_mask
-        )  # (1, src_len, dim_model)
-
-        # Initialiser le faisceau avec le token BOS
-        beam_seqs = torch.full(
-            (1, 1),
-            fill_value=self.token_bos_idx,
-            dtype=torch.long,
-            device=self.device
-        )  # (1, 1)
-        beam_scores = torch.zeros(1, device=self.device)  # (1,)
-
-        # Drapeau booléen indiquant si chaque séquence du faisceau est terminée (token EOS atteint)
-        beam_is_finished = torch.zeros(1, dtype=torch.bool, device=self.device)
-
-        # Stocker les séquences complétées
-        completed_sequences = []
-
-        for _ in range(1, max_length):
-            # Préparer les embeddings et masques cibles pour toutes les séquences du faisceau
-            tgt_embedding = self.positional_encoding(self.tgt_token_embedding(beam_seqs))  # (beam_size, seq_len, dim_model)
-            tgt_mask = generate_square_subsequent_mask(beam_seqs.size(1)).to(self.device)  # (seq_len, seq_len)
-
-            # Étendre la mémoire et le masque de padding source pour correspondre à la taille du faisceau
-            expanded_memory = memory.expand(beam_seqs.size(0), -1, -1)  # (beam_size, src_len, dim_model)
-            expanded_src_padding_mask = src_padding_mask.expand(beam_seqs.size(0), -1)  # (beam_size, src_len)
-
-            # Décoder les séquences cibles en parallèle
-            output = self.transformer.decoder(
-                tgt=tgt_embedding,
-                memory=expanded_memory,
-                tgt_mask=tgt_mask,
-                memory_key_padding_mask=expanded_src_padding_mask
-            )  # (beam_size, seq_len, dim_model)
-
-            # Générer les logits pour le dernier token de chaque séquence
-            logits = self.generator(output[:, -1, :])  # (beam_size, vocab_size)
-            log_probs = torch.log_softmax(logits, dim=-1)  # (beam_size, vocab_size)
-
-            # Masquer les log_probs pour les séquences terminées afin d'empêcher toute génération supplémentaire
-            log_probs[beam_is_finished, :] = float('-inf')
-            log_probs[beam_is_finished, self.token_eos_idx] = 0
-
-            # Calculer le nombre de tokens valides pour chaque séquence
-            valid_vocab_sizes = (log_probs != float('-inf')).sum(dim=-1)
-            min_valid_vocab_size = valid_vocab_sizes.min().item()
-
-            if min_valid_vocab_size == 0:
-                # Plus de tokens valides, terminer la boucle
-                break
-
-            # Ajuster k pour topk
-            k = min(beam_size, min_valid_vocab_size)
-
-            # Obtenir les top-k tokens et leurs log_probabilités pour chaque séquence du faisceau
-            topk_log_probs, topk_indices = log_probs.topk(k, dim=-1)  # (beam_size, k)
-
-            # Calculer les scores des candidats en ajoutant les scores actuels du faisceau
-            candidate_scores = beam_scores.unsqueeze(1) + topk_log_probs  # (beam_size, k)
-
-            # Aplatir les scores et indices pour considérer toutes les séquences candidates
-            candidate_scores = candidate_scores.view(-1)  # (beam_size * k)
-            candidate_indices = topk_indices.view(-1)  # (beam_size * k)
-
-            # Répéter les séquences du faisceau pour correspondre aux expansions des candidats
-            beam_seqs_expanded = beam_seqs.unsqueeze(1).repeat(1, k, 1)
-            beam_seqs_expanded = beam_seqs_expanded.view(-1, beam_seqs.size(1))  # (beam_size * k, seq_len)
-
-            # Ajouter de nouveaux tokens aux séquences
-            candidate_seqs = torch.cat([beam_seqs_expanded, candidate_indices.unsqueeze(1)], dim=1)  # (beam_size * k, seq_len + 1)
-
-            # Mettre à jour beam_is_finished pour les candidats
-            beam_is_finished_expanded = beam_is_finished.unsqueeze(1).repeat(1, k).view(-1)
-            candidate_is_finished = beam_is_finished_expanded | (candidate_indices == self.token_eos_idx)
-
-            # Si aucun candidat, arrêter la boucle
-            num_candidates = candidate_scores.size(0)
-            if num_candidates == 0:
-                break
-
-            # Ajuster k pour les candidats uniques
-            k = min(beam_size, num_candidates)
-
-            # Sélectionner les top-k séquences basées sur les scores
-            topk_candidate_scores, topk_indices = candidate_scores.topk(k)  # (k,)
-            beam_seqs = candidate_seqs[topk_indices]  # (k, seq_len + 1)
-            beam_scores = topk_candidate_scores  # (k,)
-            beam_is_finished = candidate_is_finished[topk_indices]
-
-            # Stocker les séquences complétées
-            for i in range(beam_seqs.size(0)):
-                if beam_is_finished[i]:
-                    seq = beam_seqs[i]
-                    score = beam_scores[i].item()
-                    completed_sequences.append((seq, score))
-
-            # Enlever les séquences terminées du faisceau
-            incomplete_indices = (beam_is_finished == 0).nonzero(as_tuple=False).view(-1)
-            if len(incomplete_indices) == 0:
-                break  # Toutes les séquences sont terminées
-
-            beam_seqs = beam_seqs[incomplete_indices]
-            beam_scores = beam_scores[incomplete_indices]
-            beam_is_finished = beam_is_finished[incomplete_indices]
-
-        # Si aucune séquence n'est complétée, utiliser le faisceau actuel
-        if not completed_sequences:
-            completed_sequences = [(beam_seqs[i], beam_scores[i].item()) for i in range(beam_seqs.size(0))]
-
-        # Trier les séquences complétées par score en ordre décroissant
-        completed_sequences = sorted(completed_sequences, key=lambda x: x[1], reverse=True)
-
-        # Retourner les top-k séquences complétées
-        return completed_sequences[:beam_size]
-
-    def _beam_search_single_sequence_NEW_FAST_BUT_DUP_AND_TOP_K_ISSUE(
-        self,
-        source: torch.Tensor,
-        src_mask: torch.Tensor,
-        src_padding_mask: torch.Tensor,
-    ) -> List[Tuple[torch.Tensor, float]]:
-        """Beam search pour générer des séquences cibles pour une séquence source unique.
-
-        Parameters
-        ----------
-        source : torch.Tensor
-            Séquence source.
-        src_mask : torch.Tensor
-            Masque source.
-        src_padding_mask : torch.Tensor
-            Masque de padding source.
-
-        Returns
-        -------
-        List[Tuple[torch.Tensor, float]]
-            Liste des séquences cibles générées et leurs scores.
-        """
-        # Obtenir les paramètres de décodage
-        msg = "Les paramètres de décodage ne sont pas configurés. Appelez d'abord `set_decoding_strategy`."
-        try:
-            max_length = self.max_length
-            beam_size = self.beam_size
-        except AttributeError:
-            raise ValueError(msg)
-
-        # Embedding de la source
-        src_embedding = self.positional_encoding(self.src_token_embedding(source))  # (1, src_len, dim_model)
-        memory = self.transformer.encoder(
-            src_embedding, mask=src_mask, src_key_padding_mask=src_padding_mask
-        )  # (1, src_len, dim_model)
-
-        # Initialiser le faisceau avec le token BOS
-        beam_seqs = torch.full(
-            (1, 1),
-            fill_value=self.token_bos_idx,
-            dtype=torch.long,
-            device=self.device
-        )  # (1, 1)
-        beam_scores = torch.zeros(1, device=self.device)  # (1,)
-
-        # Drapeau booléen indiquant si chaque séquence du faisceau est terminée (token EOS atteint)
-        beam_is_finished = torch.zeros(1, dtype=torch.bool, device=self.device)
-
-        # Stocker les séquences complétées
-        completed_sequences = []
-
-        for _ in range(1, max_length):
-            # Préparer les embeddings et masques cibles pour toutes les séquences du faisceau
-            tgt_embedding = self.positional_encoding(self.tgt_token_embedding(beam_seqs))  # (beam_size, seq_len, dim_model)
-            tgt_mask = generate_square_subsequent_mask(beam_seqs.size(1)).to(self.device)  # (seq_len, seq_len)
-
-            # Étendre la mémoire et le masque de padding source pour correspondre à la taille du faisceau
-            expanded_memory = memory.expand(beam_seqs.size(0), -1, -1)  # (beam_size, src_len, dim_model)
-            expanded_src_padding_mask = src_padding_mask.expand(beam_seqs.size(0), -1)  # (beam_size, src_len)
-
-            # Décoder les séquences cibles en parallèle
-            output = self.transformer.decoder(
-                tgt=tgt_embedding,
-                memory=expanded_memory,
-                tgt_mask=tgt_mask,
-                memory_key_padding_mask=expanded_src_padding_mask
-            )  # (beam_size, seq_len, dim_model)
-
-            # Générer les logits pour le dernier token de chaque séquence
-            logits = self.generator(output[:, -1, :])  # (beam_size, vocab_size)
-            log_probs = torch.log_softmax(logits, dim=-1)  # (beam_size, vocab_size)
-
-            # Masquer les log_probs pour les séquences terminées afin d'empêcher toute génération supplémentaire
-            log_probs[beam_is_finished, :] = -float('inf')
-            log_probs[beam_is_finished, self.token_eos_idx] = 0
-
-            # Obtenir les top-k tokens et leurs log_probabilités pour chaque séquence du faisceau
-            topk_log_probs, topk_indices = log_probs.topk(beam_size, dim=-1)  # (beam_size, beam_size)
-
-            # Calculer les scores des candidats en ajoutant les scores actuels du faisceau
-            candidate_scores = beam_scores.unsqueeze(1) + topk_log_probs  # (beam_size, beam_size)
-
-            # Aplatir les scores et indices pour considérer toutes les séquences candidates
-            candidate_scores = candidate_scores.view(-1)  # (beam_size * beam_size)
-            candidate_indices = topk_indices.view(-1)  # (beam_size * beam_size)
-
-            # Répéter les séquences du faisceau pour correspondre aux expansions des candidats
-            beam_seqs_expanded = beam_seqs.unsqueeze(1).repeat(1, beam_size, 1)
-            beam_seqs_expanded = beam_seqs_expanded.view(-1, beam_seqs.size(1))  # (beam_size * beam_size, seq_len)
-
-            # Ajouter de nouveaux tokens aux séquences
-            candidate_seqs = torch.cat([beam_seqs_expanded, candidate_indices.unsqueeze(1)], dim=1)  # (beam_size * beam_size, seq_len + 1)
-
-            # Mettre à jour beam_is_finished pour les candidats
-            beam_is_finished_expanded = beam_is_finished.unsqueeze(1).repeat(1, beam_size).view(-1)
-            candidate_is_finished = beam_is_finished_expanded | (candidate_indices == self.token_eos_idx)
-
-            # Sélectionner les top-k séquences basées sur les scores
-            topk_candidate_scores, topk_indices = candidate_scores.topk(beam_size)  # (beam_size,)
-
-            beam_seqs = candidate_seqs[topk_indices]  # (beam_size, seq_len + 1)
-            beam_scores = topk_candidate_scores  # (beam_size,)
-            beam_is_finished = candidate_is_finished[topk_indices]
-
-            # Stocker les séquences complétées
-            for i in range(beam_size):
-                if beam_is_finished[i]:
-                    seq = beam_seqs[i]
-                    score = beam_scores[i].item()
-                    completed_sequences.append((seq, score))
-
-            # Casser la boucle si toutes les séquences sont terminées
-            if beam_is_finished.all():
-                break
-
-        # Si aucune séquence n'est complétée, utiliser le faisceau actuel
-        if not completed_sequences:
-            completed_sequences = [(beam_seqs[i], beam_scores[i].item()) for i in range(beam_size)]
-
-        # Trier les séquences complétées par score en ordre décroissant
-        completed_sequences = sorted(completed_sequences, key=lambda x: x[1], reverse=True)
-
-        # Retourner les top-k séquences complétées
-        return completed_sequences[:beam_size]
-
-    def _beam_search_single_sequence_V2(
-        self,
-        source: torch.Tensor,
-        src_mask: torch.Tensor,
-        src_padding_mask: torch.Tensor,
-    ) -> List[Tuple[torch.Tensor, float]]:
-        """Beam search for generating target sequences for a single source sequence.
-
-        Parameters
-        ----------
-        source : torch.Tensor
-            Source sequence.
-        src_mask : torch.Tensor
-            Source mask.
-        src_padding_mask : torch.Tensor
-            Source padding mask.
+            Source padding mask: shape (1, src_len) or None.
 
         Returns
         -------
         List[Tuple[torch.Tensor, float]]
             List of generated target sequences and their scores.
         """
-        # Get decoding settings
+        # -- 1) Get decoding settings
         msg = "Decoding settings not configured. Call `set_decoding_strategy` first."
         try:
             max_length = self.max_length
@@ -1126,143 +715,83 @@ class TransformerModel(pl.LightningModule):
         except AttributeError:
             raise ValueError(msg)
 
-        # Embed source
-        src_embedding = self.positional_encoding(self.src_token_embedding(source))  # (1, src_len, dim_model)  # noqa
+        # -- 2) Encode source
+        # Shape: (1, src_len, dim_model)
+        src_embedding = self.positional_encoding(self.src_token_embedding(source))
         memory = self.transformer.encoder(
             src_embedding, mask=src_mask, src_key_padding_mask=src_padding_mask
-        )  # (1, src_len, dim_model)
+        )
 
-        # Init: ongoing sequences (start by a BOS token)
-        beam_seqs = torch.full(
-            size=(1, 1),
-            fill_value=self.token_bos_idx,
-            dtype=torch.int,
-            device=self.device
-        )  # (1, 1)
-
-        # Init: scores
-        beam_scores = torch.zeros(1, dtype=torch.float, device=self.device)  # (1,)
-
-        # Init: flag for completed sequences
-        beam_is_complete = torch.zeros(1, dtype=torch.bool, device=self.device)  # (1,)
-
-        # Init: completed sequences
-        completed_seqs = torch.empty(0, dtype=torch.int, device=self.device)  # (0,)
-        completed_scores = torch.empty(0, dtype=torch.float, device=self.device)  # (0,)
-        # completed_sequences = []
-
-        # Initialize beam with BOS token
+        # -- 3) Initialize beam
+        # beam: List of (sequence: Tensor, score: float)
         beam = [(torch.tensor([self.token_bos_idx], device=self.device), 0.0)]
+        completed_sequences: List[Tuple[torch.Tensor, float]] = []
 
-        # Autoregressive decoding
+        # -- (Modification #1) Precompute the full look-ahead mask for max_length
+        #    Then we'll slice it as needed
+        full_look_ahead_mask = generate_square_subsequent_mask(max_length).to(self.device)
+
+        # -- 4) Iterative decoding
         for _ in range(max_length):
+            candidates = []
+            all_candidates_completed = True
 
-            # DEBUG INFO
-            # for seq, score in beam:
-            for seq, score in zip(beam_seqs, beam_scores):
-                logger.debug(f"Beam seq: {seq} ({score})")
-            logger.debug(f"Completed: {completed_seqs}")
-            logger.debug(f"Beam size: {len(beam_seqs)}")
-            logger.debug(f"Completed size: {len(completed_seqs)}")
-            logger.debug(f"Iteration: {_}")
-            print(flush=True)
-
-            # Init: candidates
-            # candidates = []
-            candidates_seqs = torch.empty(0, dtype=torch.int, device=self.device)  # DEBUG
-            candidates_scores = torch.empty(0, dtype=torch.float, device=self.device)  # DEBUG
-            all_candidates_completed = True  # Flag to check if all candidates are completed
-
-            # Loop over each sequence in the beam
-            for seq, score in zip(beam_seqs, beam_scores):
-
-                # Check if the sequence is completed
+            for seq, score in beam:
+                # If already ended with EOS, move it to completed_sequences
                 if seq[-1] == self.token_eos_idx:
-                    completed_seqs = torch.cat([completed_seqs, seq.unsqueeze(0)], dim=0)  # (n, seq_len)
+                    completed_sequences.append((seq, score))
                     continue
 
-                # Update flag since we reached this point
-                all_candidates_completed = False
+                all_candidates_completed = False  # At least one seq is still active
 
-                # Prepare target tensor
-                target = seq.unsqueeze(0)  # (1, seq_len)
+                # Prepare target = shape (1, seq_len)
+                target = seq.unsqueeze(0)
+                # Embedding
                 tgt_embedding = self.positional_encoding(self.tgt_token_embedding(target))
 
-                # Generate target mask
-                tgt_mask = generate_square_subsequent_mask(target.size(1)).to(self.device)
+                # (Modification #1 continued) We slice the precomputed mask
+                seq_len = target.size(1)
+                tgt_mask = full_look_ahead_mask[:seq_len, :seq_len]
 
-                # Decode target
+                # Decode
                 output = self.transformer.decoder(
                     tgt=tgt_embedding,
                     memory=memory,
                     tgt_mask=tgt_mask,
-                    memory_key_padding_mask=src_padding_mask
+                    memory_key_padding_mask=src_padding_mask,
                 )
-
-                # Generate logits
+                # Last token logits => log_softmax
                 logits = self.generator(output[:, -1, :])  # (1, vocab_size)
                 log_probs = torch.log_softmax(logits, dim=-1)  # (1, vocab_size)
 
-                # Get top-k candidates
-                topk_log_probs, topk_indices = log_probs.topk(beam_size)
+                # Get top-k expansions
+                beam_size = self.beam_size
+                vocab_size = log_probs.size(-1)
+                k = min(beam_size, vocab_size)
 
-                # Append top-k candidates
-                for k in range(beam_size):
-                    next_seq = torch.cat([seq, topk_indices[0, k].unsqueeze(0)])
-                    next_score = score + topk_log_probs[0, k].item()
-                    candidates_seqs = torch.cat([candidates_seqs, next_seq.unsqueeze(0)], dim=0)  # DEBUG # noqa
-                    candidates_scores = torch.cat([candidates_scores, next_score.unsqueeze(0)], dim=0)  # DEBUG # noqa
-                    # candidates.append((next_seq, next_score))
+                topk_log_probs, topk_indices = log_probs.topk(k, dim=-1)
+                for i in range(k):
+                    next_seq = torch.cat([seq, topk_indices[0, i].unsqueeze(0)])
+                    next_score = score + topk_log_probs[0, i].item()
+                    candidates.append((next_seq, next_score))
 
-            # DEBUG INFO
-            for seq, score in zip(candidates_seqs, candidates_scores):
-                logger.debug(f"Candidates seq: {seq} ({score})")
-            print(flush=True)
-
-            # If all candidates are completed, stop
+            # (Modification #2) Early stopping if everything is completed
             if all_candidates_completed:
                 break
 
-            # DEBUG INFO
-            logger.debug("Before sorting:")
-            for seq, score in zip(candidates_seqs, candidates_scores):
-                logger.debug(f"Seq: {seq} ({score})")
-            print(flush=True)
+            # Update the beam => select top beam_size
+            # (No deduplication here — same as original)
+            beam = sorted(candidates, key=lambda x: x[1], reverse=True)[:beam_size]
 
-            # Sort candidates by score
-            argsort = torch.argsort(candidates_scores, descending=True)
-            logger.debug(f"Argsort: {argsort}")
-            beam_seqs = candidates_seqs[argsort]
-            beam_scores = candidates_scores[argsort]
-            logger.debug("After sorting:")
-            for seq, score in zip(beam_seqs, beam_scores):
-                logger.debug(f"Beam seq: {seq} ({score})")
-            print(flush=True)
+        # -- 5) If no sequences ended with EOS, use the current beam
+        if not completed_sequences:
+            completed_sequences = beam
 
-            # Select top-k candidates
-            beam_seqs = beam_seqs[:beam_size]
-            beam_scores = beam_scores[:beam_size]
+        # Sort final sequences by score descending, keep top beam_size
+        completed_sequences = sorted(completed_sequences, key=lambda x: x[1], reverse=True)
+        completed_sequences = completed_sequences[:beam_size]
 
-            # beam = sorted(candidates_seqs, key=lambda x: x[1], reverse=True)[:beam_size]
-
-        # If no sequences are completed, use the current beam
-        if not len(completed_seqs):
-            completed_seqs = beam_seqs
-            completed_scores = beam_scores
-
-        # Reorder sequences by score
-        argsort = torch.argsort(completed_scores, descending=True)
-        completed_seqs = completed_seqs[argsort]
-        completed_scores = completed_scores[argsort]
-        # completed_sequences = sorted(completed_sequences, key=lambda x: x[1], reverse=True)
-
-        # Consider only the top-k sequences
-        completed_seqs = completed_seqs[:beam_size]
-        completed_scores = completed_scores[:beam_size]
-        # completed_sequences = completed_sequences[:beam_size]
-
-        # Return completed sequences with scores
-        return zip(completed_seqs, completed_scores)
+        return completed_sequences
 
     def _beam_search_single_sequence_BACKUP(
         self,
@@ -1400,8 +929,8 @@ class TransformerModel(pl.LightningModule):
             single_src_padding_mask = src_padding_mask[i].unsqueeze(0) if src_padding_mask is not None else None  # noqa
 
             # Generate sequences using beam search
-            # sequences = self._beam_search_single_sequence_V2(
-            sequences = self._beam_search_single_sequence_BACKUP(
+            # sequences = self._beam_search_single_sequence_BACKUP(
+            sequences = self._beam_search_single_sequence_V5(
                 single_source, single_src_mask, single_src_padding_mask
             )
 
