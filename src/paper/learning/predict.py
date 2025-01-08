@@ -91,20 +91,20 @@ def parse_args():
         type=str,
         choices=["ECFP", "SIGNATURE", "SMILES"],
         default="ECFP",
-        help="Source data type. Choices: %(choices)s",
+        help="Source data type. Choices: %(choices)s. Default: %(default)s",
     )
     parser.add_argument(
         "--target",
         type=str,
         choices=["ECFP", "SIGNATURE", "SMILES"],
         default="SMILES",
-        help="Target data type. Choices: %(choices)s",
+        help="Target data type. Choices: %(choices)s. Default: %(default)s",
     )
     parser.add_argument(
         "--pred_test_file",
         type=str,
         default=CONFIG.pred_test_file,
-        help="Data file path.",
+        help="Data file path. Default: %(default)s",
     )
     parser.add_argument(
         "--pred_source_index",
