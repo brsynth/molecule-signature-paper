@@ -219,33 +219,37 @@ def main():
     results = [r for batch in results for r in batch]  # remove batch dimension
     _tmp = []
     for idx, result in enumerate(results):
-        for tokens, score in result:
+        for tokens, logit in result:
             _tmp += [
                 pd.Series({
-                    "Seq": idx,
-                    "Tokens": tokens,
-                    "Score": score,
-                    "Target": df.iloc[idx, CONFIG.pred_target_index],
+                    "Seq ID": idx,
+                    "Prediction Tokens": tokens,
+                    "Prediction Log Prob": logit,
+                    "Target SMILES": df.iloc[idx, CONFIG.pred_target_index],
                 })
             ]
     results = pd.DataFrame(_tmp)
 
     # Decode
-    results["Prediction"] = results["Tokens"].apply(trg_tokenizer.decode)
+    results["Prediction SMILES"] = results["Prediction Tokens"].apply(trg_tokenizer.decode)
 
-    # Check target equality
-    results["Target match"] = results["Prediction"] == results["Target"]
+    # Check if prediction matches target
+    results["Target match"] = results["Prediction SMILES"] == results["Target SMILES"]
 
-    # Compute mol and ECFP of the prediction
-    results["Prediction Mol"] = results["Prediction"].apply(mol_from_smiles)
+    # Compute mol, ECFP and canonic SMILES of the prediction
+    results["Prediction Mol"] = results["Prediction SMILES"].apply(mol_from_smiles)
     results["Prediction ECFP"] = results["Prediction Mol"].apply(mol_to_ecfp)
+    results["Prediction Canonic SMILES"] = results["Prediction Mol"].apply(mol_to_smiles)
 
     # Compute mol and ECFP of the target
-    results["Target Mol"] = results["Target"].apply(mol_from_smiles)
+    results["Target Mol"] = results["Target SMILES"].apply(mol_from_smiles)
     results["Target ECFP"] = results["Target Mol"].apply(mol_to_ecfp)
 
-    # Compute the Tanimoto similarity
+    # Compute Tanimoto similarity between prediction and target
     results["Tanimoto"] = results.apply(lambda x: tanimoto(x["Prediction ECFP"], x["Target ECFP"]), axis=1)  # noqa E501
+
+    # Check if canocalized prediction matches target
+    results["Canonic match"] = results["Prediction Canonic SMILES"] == results["Target SMILES"]
 
     # Save results as pickle
     results.to_pickle("results.pkl")
