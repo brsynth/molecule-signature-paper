@@ -368,7 +368,7 @@ class TransformerModel(pl.LightningModule):
                 no_decay_params.append(param)
             else:
                 decay_params.append(param)
-        
+
         optimizer_grouped_parameters = [
             {"params": decay_params, "weight_decay": 0.01},
             {"params": no_decay_params, "weight_decay": 0.0},
