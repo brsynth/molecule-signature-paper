@@ -223,7 +223,7 @@ def run(CONFIG):
     model.set_decoding_strategy(strategy=CONFIG.pred_mode, max_length=CONFIG.pred_max_length, beam_size=CONFIG.pred_beam_size)  # noqa E501
 
     # Predict
-    trainer = L.Trainer(accelerator="mps")
+    trainer = L.Trainer(accelerator=CONFIG.device)
     results = trainer.predict(model, dataloader)
 
     # Store results in a dataframe
