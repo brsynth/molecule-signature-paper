@@ -188,9 +188,20 @@ def parse_args():
 
 
 # Main --------------------------------------------------------------------------------------------
-def main():
+def _run():
     CONFIG = parse_args()
+    run(CONFIG)
 
+
+def run(CONFIG):
+    """Predict on a dataset.
+
+    Args:
+        CONFIG (Config): Configuration object.
+
+    Returns:
+
+    """
     # Load tokenizers
     src_tokenizer = Tokenizer(model_path=CONFIG.source_token_model, fp_type=CONFIG.source)
     trg_tokenizer = Tokenizer(model_path=CONFIG.target_token_model, fp_type=CONFIG.target)
@@ -258,6 +269,9 @@ def main():
     if logger.level == logging.DEBUG:
         print(results[["Seq ID", "Prediction Log Prob", "Target match", "Tanimoto", "Canonic match"]])  # noqa E501
 
+    # Return results
+    return results
+
 
 if __name__ == "__main__":
-    main()
+    _run()
