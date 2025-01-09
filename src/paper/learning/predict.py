@@ -114,13 +114,13 @@ def parse_args():
         help="Data file path. Default: %(default)s",
     )
     parser.add_argument(
-        "--pred_source_index",
+        "--source_col_idx",
         type=int,
         default=4,
         help="Source column index. Default: %(default)s",
     )
     parser.add_argument(
-        "--pred_target_index",
+        "--target_col_index",
         type=int,
         default=2,
         help="Target column index. Default: %(default)s",
@@ -209,7 +209,7 @@ def run(CONFIG):
     # Load dataset
     df = pd.read_csv(CONFIG.pred_test_file, sep="\t", nrows=CONFIG.pred_max_rows)
     dataset = ListDataset(
-        data=df.iloc[:, CONFIG.pred_source_index].to_list(),
+        data=df.iloc[:, CONFIG.source_col_idx].to_list(),
         token_fn=src_tokenizer,
         max_length=CONFIG.pred_max_length,
         max_rows=CONFIG.pred_max_rows,
@@ -236,7 +236,7 @@ def run(CONFIG):
                     "Seq ID": idx,
                     "Prediction Tokens": tokens,
                     "Prediction Log Prob": logit,
-                    "Target SMILES": df.iloc[idx, CONFIG.pred_target_index],
+                    "Target SMILES": df.iloc[idx, CONFIG.target_col_idx],
                 })
             ]
     results = pd.DataFrame(_tmp)
