@@ -924,11 +924,12 @@ class TransformerModel(pl.LightningModule):
         source, _, _, src_mask, _, src_padding_mask, _ = batch
         batch_size = source.size(0)
 
+        msg = "Decoding settings not configured. Call `set_decoding_strategy` first."
         try:
             max_length = self.max_length
             beam_size = self.beam_size
         except AttributeError:
-            raise ValueError("Decoding settings not configured. Call `set_decoding_strategy` first.")
+            raise ValueError(msg)
 
         # -- 2) Encodage des séquences sources (en batch)
         # Shape : (batch_size, src_len, dim_model)
@@ -944,7 +945,7 @@ class TransformerModel(pl.LightningModule):
         # On duplique chaque élément du batch "beam_size" fois
         # => (batch_size * beam_size, src_len, dim_model)
         expanded_memory = memory.unsqueeze(1).repeat(1, beam_size, 1, 1)
-        expanded_memory = expanded_memory.view(batch_size * beam_size, memory.size(1), memory.size(2))
+        expanded_memory = expanded_memory.view(batch_size * beam_size, memory.size(1), memory.size(2))  # noqa
 
         # Idem pour la mask de padding
         # => (batch_size * beam_size, src_len)
