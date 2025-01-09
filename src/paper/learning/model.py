@@ -5,7 +5,6 @@ from typing import Tuple, List, Optional, Any
 import lightning.pytorch as pl
 import torch
 import torch.nn as nn
-from torch import tensor
 from torch.utils.data import DataLoader
 from torchmetrics.functional import accuracy
 from torchmetrics.aggregation import MeanMetric
@@ -896,6 +895,252 @@ class TransformerModel(pl.LightningModule):
         return completed_sequences
 
     def _beam_search_batch(
+        self,
+        batch: List[torch.Tensor],
+    ) -> List[List[Tuple[torch.Tensor, float]]]:
+        """
+        Nouveau beam search batched, exploitant le GPU et la déduplication
+        pour chaque itération. 
+        La fonction renvoie pour chaque source du batch un top-k (beam_size)
+        de séquences générées, accompagné de leur score (somme des log_probs).
+
+        Paramètres
+        ----------
+        batch : List[torch.Tensor]
+            Un batch de tenseurs contenant au minimum :
+            - source : torch.Tensor (batch_size, src_len)
+            - src_mask : torch.Tensor ou None (optionnel, ex: (src_len, src_len))
+            - src_padding_mask : torch.Tensor ou None (optionnel, ex: (batch_size, src_len))
+            Les autres éléments du batch ne sont pas utilisés ici.
+
+        Retour
+        ------
+        all_generated_sequences : List[List[Tuple[torch.Tensor, float]]]
+            Pour chaque séquence source dans le batch, renvoie une liste
+            de (séquence_générée, score).
+        """
+        # -- 1) Récupération de paramètres et des tenseurs depuis le batch
+        # Selon votre structure de batch habituelle
+        source, _, _, src_mask, _, src_padding_mask, _ = batch
+        batch_size = source.size(0)
+
+        try:
+            max_length = self.max_length
+            beam_size = self.beam_size
+        except AttributeError:
+            raise ValueError("Decoding settings not configured. Call `set_decoding_strategy` first.")
+
+        # -- 2) Encodage des séquences sources (en batch)
+        # Shape : (batch_size, src_len, dim_model)
+        src_embedding = self.positional_encoding(self.src_token_embedding(source))
+        # memory : (batch_size, src_len, dim_model)
+        memory = self.transformer.encoder(
+            src_embedding,
+            mask=src_mask,  # ex: (src_len, src_len)
+            src_key_padding_mask=src_padding_mask,  # ex: (batch_size, src_len)
+        )
+
+        # -- 3) Répétition du memory pour beam_size
+        # On duplique chaque élément du batch "beam_size" fois
+        # => (batch_size * beam_size, src_len, dim_model)
+        expanded_memory = memory.unsqueeze(1).repeat(1, beam_size, 1, 1)
+        expanded_memory = expanded_memory.view(batch_size * beam_size, memory.size(1), memory.size(2))
+
+        # Idem pour la mask de padding
+        # => (batch_size * beam_size, src_len)
+        if src_padding_mask is not None:
+            expanded_src_padding_mask = src_padding_mask.unsqueeze(1).repeat(1, beam_size, 1)
+            expanded_src_padding_mask = expanded_src_padding_mask.view(
+                batch_size * beam_size, src_padding_mask.size(1)
+            )
+        else:
+            expanded_src_padding_mask = None
+
+        # -- 4) Initialisation des séquences de sortie
+        # On démarre toutes les séquences par BOS
+        # sequences : (batch_size*beam_size, 1) avec le token_bos_idx
+        device = self.device
+        bos_tokens = torch.full(
+            (batch_size * beam_size, 1),
+            fill_value=self.token_bos_idx,
+            dtype=torch.long,
+            device=device,
+        )
+        sequences = bos_tokens  # contiendra les tokens générés
+        # scores : (batch_size*beam_size,)
+        # On met 0.0 pour commencer (somme de log_probs)
+        scores = torch.zeros(batch_size * beam_size, device=device)
+
+        # Pour savoir quelles séquences sont terminées (EOS atteint)
+        # False = encore active ; True = terminée
+        is_finished = torch.zeros(batch_size * beam_size, dtype=torch.bool, device=device)
+
+        # Precompute look-ahead mask 2D : (max_length, max_length)
+        # qu'on utilisera partiellement à chaque étape
+        full_look_ahead_mask = generate_square_subsequent_mask(max_length).to(device)
+
+        # -- 5) Boucle de génération
+        for step in range(max_length - 1):  # -1 parce qu'on a déjà 1 token (BOS)
+            # On arrête si toutes les séquences sont terminées
+            if is_finished.all():
+                break
+
+            seq_len = sequences.size(1)
+
+            # 5.1) Préparation pour la décodage
+            # Embed target
+            tgt_embedding = self.positional_encoding(self.tgt_token_embedding(sequences))
+            # Masque de la cible : (seq_len, seq_len)
+            tgt_mask = full_look_ahead_mask[:seq_len, :seq_len]
+
+            # 5.2) Passage dans le décodeur
+            # output : (batch_size*beam_size, seq_len, dim_model)
+            output = self.transformer.decoder(
+                tgt=tgt_embedding,
+                memory=expanded_memory,
+                tgt_mask=tgt_mask,
+                memory_key_padding_mask=expanded_src_padding_mask,
+            )
+            # On prend la dernière sortie pour prédire le prochain token
+            # logits : (batch_size*beam_size, vocab_size)
+            logits = self.generator(output[:, -1, :])
+            log_probs = torch.log_softmax(logits, dim=-1)  # (batch_size*beam_size, vocab_size)
+
+            # 5.3) Pour chaque élément du batch, on récupère beam_size expansions
+            # La forme finale sera (batch_size * beam_size, beam_size)
+            # car pour chaque ligne, on prend top beam_size
+            vocab_size = log_probs.size(-1)
+            k = min(beam_size, vocab_size)
+            topk_log_probs, topk_indices = log_probs.topk(k, dim=-1)  # (B*beam_size, k)
+
+            # 5.4) Construction de toutes les nouvelles séquences candidates
+            # On génère (batch_size * beam_size * beam_size) candidats avant de filtrer par batch
+            # new_candidates stockera : (batch_index, [ (seq, score), ... ])
+            # On va regrouper par batch_index (i dans [0..batch_size-1]) puis filtrer.
+
+            # Pour plus de lisibilité, on va réorganiser les tenseurs en batch, beam
+            # shape => (batch_size, beam_size, k)
+            topk_log_probs = topk_log_probs.view(batch_size, beam_size, k)
+            topk_indices = topk_indices.view(batch_size, beam_size, k)
+            old_scores = scores.view(batch_size, beam_size)
+            old_sequences = sequences.view(batch_size, beam_size, -1)
+            old_is_finished = is_finished.view(batch_size, beam_size)
+
+            new_beam_sequences = []
+            new_beam_scores = []
+
+            # Parcours de chaque élément du batch
+            for i in range(batch_size):
+                candidates_dict = {}  # key: tuple(seq), value: (seq_tensor, score)
+
+                for b in range(beam_size):
+                    if old_is_finished[i, b]:
+                        # Si la séquence est déjà terminée, on la recopie telle quelle
+                        seq_finished = old_sequences[i, b]
+                        sc_finished = old_scores[i, b].item()
+
+                        # on force l'ajout d'un token identique
+                        dummy_token = torch.tensor([self.token_pad_idx], device=device)
+                        new_seq = torch.cat([seq_finished, dummy_token], dim=0)
+
+                        key = tuple(new_seq.tolist())
+                        # On ne la duplique pas, elle reste unique
+                        if key not in candidates_dict:
+                            candidates_dict[key] = (new_seq, sc_finished)
+                        else:
+                            # si déjà présent, on ne prend que le meilleur score
+                            if sc_finished > candidates_dict[key][1]:
+                                candidates_dict[key] = (new_seq, sc_finished)
+                        continue
+
+                    # Sinon, on génère k nouvelles expansions
+                    base_seq = old_sequences[i, b]
+                    base_score = old_scores[i, b].item()
+
+                    for j in range(k):
+                        next_token = topk_indices[i, b, j].unsqueeze(0)  # shape (1,)
+                        next_score = base_score + topk_log_probs[i, b, j].item()
+
+                        new_seq = torch.cat([base_seq, next_token], dim=0)
+                        key = tuple(new_seq.tolist())
+                        if key not in candidates_dict:
+                            candidates_dict[key] = (new_seq, next_score)
+                        else:
+                            # si déjà présent, on garde le meilleur score
+                            if next_score > candidates_dict[key][1]:
+                                candidates_dict[key] = (new_seq, next_score)
+
+                # On a collecté tous les candidats (potentiellement plus que beam_size).
+                # On filtre les top beam_size en fonction du score
+                all_candidates = list(candidates_dict.values())  # -> List[(seq, score)]
+                all_candidates.sort(key=lambda x: x[1], reverse=True)
+                best_candidates = all_candidates[:beam_size]
+
+                # On stocke ces meilleurs candidats pour reconstituer plus tard
+                new_beam_sequences.append([c[0] for c in best_candidates])
+                new_beam_scores.append([c[1] for c in best_candidates])
+
+            # 5.5) On recrée nos tenseurs sequences, scores, is_finished
+            # new_beam_sequences[i] est une liste de beam_size Tensors pour l’exemple i
+            # On les empile pour reconstituer un batch
+            stacked_sequences = []
+            stacked_scores = []
+            stacked_finished = []
+            for i in range(batch_size):
+                seqs = new_beam_sequences[i]
+                scs = new_beam_scores[i]
+
+                # Empile en 0 => (beam_size, seq_len+1)
+                seq_tensor = torch.stack(seqs, dim=0).to(device)
+                score_tensor = torch.tensor(scs, device=device, dtype=torch.float)
+
+                # Détection des terminaisons
+                # On dit que c’est fini si le dernier token == EOS
+                eos_mask = (seq_tensor[:, -1] == self.token_eos_idx)
+                stacked_sequences.append(seq_tensor)
+                stacked_scores.append(score_tensor)
+                stacked_finished.append(eos_mask)
+
+            # On fusionne tout en un unique tenseur de taille (batch_size*beam_size, seq_len+1)
+            # idem pour scores et is_finished
+            sequences = torch.cat(stacked_sequences, dim=0)  # (batch_size*beam_size, seq_len+1)
+            scores = torch.cat(stacked_scores, dim=0)        # (batch_size*beam_size,)
+            is_finished = torch.cat(stacked_finished, dim=0) # (batch_size*beam_size,)
+
+        # -- 6) On regroupe les séquences terminées pour chaque élément du batch
+        # Note : si certaines ne sont pas finies à max_length, on les prend quand même
+        # On va simplement trier par score et garder beam_size
+
+        # Remise en forme : (batch_size, beam_size, seq_len)
+        final_sequences = sequences.view(batch_size, beam_size, -1)
+        final_scores = scores.view(batch_size, beam_size)
+        
+        all_generated_sequences: List[List[Tuple[torch.Tensor, float]]] = []
+
+        for i in range(batch_size):
+            seqs_i = final_sequences[i]
+            scores_i = final_scores[i]
+
+            # On les trie par score
+            idx_sorted = torch.argsort(scores_i, descending=True)
+            sorted_seqs = seqs_i[idx_sorted]
+            sorted_scores = scores_i[idx_sorted]
+
+            # Conversion en list[ (seq_tensor, score), ... ]
+            sequences_scored = []
+            for seq_t, sc in zip(sorted_seqs, sorted_scores):
+                sequences_scored.append((seq_t, float(sc.item())))
+
+            # On ne garde que le nombre de séquences réellement générées,
+            # c’est-à-dire <= beam_size.
+            # Ici, on n'a plus de duplication : on a déjà filtré itération par itération.
+            # Donc on limite juste à beam_size
+            best = sequences_scored[:beam_size]
+            all_generated_sequences.append(best)
+
+        return all_generated_sequences
+
+    def _beam_search_batch_BACKUP(
         self,
         batch: List[torch.Tensor],
     ) -> List[List[Tuple[torch.Tensor, float]]]:
