@@ -1077,7 +1077,14 @@ class TransformerModel(pl.LightningModule):
                 all_candidates.sort(key=lambda x: x[1], reverse=True)
                 best_candidates = all_candidates[:beam_size]
 
-                # On stocke ces meilleurs candidats pour reconstituer plus tard
+                # If we have less than beam_size candidates, we add dummy sequences to keep
+                # the shape (beam_size, seq_len)
+                while len(best_candidates) < beam_size:
+                    dummy_seq = torch.tensor(
+                        [self.token_bos_idx] + [self.token_unk_idx] * (seq_len),
+                        device=device
+                    )
+                    best_candidates.append((dummy_seq, float("-inf")))
                 new_beam_sequences.append([c[0] for c in best_candidates])
                 new_beam_scores.append([c[1] for c in best_candidates])
 
@@ -1095,9 +1102,9 @@ class TransformerModel(pl.LightningModule):
                 seq_tensor = torch.stack(seqs, dim=0).to(device)
                 score_tensor = torch.tensor(scs, device=device, dtype=torch.float)
 
-                # Détection des terminaisons
-                # On dit que c’est fini si le dernier token == EOS
-                eos_mask = (seq_tensor[:, -1] == self.token_eos_idx)
+                # Look for terminated sequences
+                # Termniated sequences are sequences that end with EOS token or PAD token
+                eos_mask = (seq_tensor[:, -1] == self.token_eos_idx) | (seq_tensor[:, -1] == self.token_pad_idx)  # noqa
                 stacked_sequences.append(seq_tensor)
                 stacked_scores.append(score_tensor)
                 stacked_finished.append(eos_mask)
