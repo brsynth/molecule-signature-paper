@@ -75,7 +75,7 @@ def parse_args():
     CONFIG = Config(db="emolecules", source="ECFP", target="SMILES", mode="predict")
     parser = argparse.ArgumentParser(
         prog=Path(__file__).name,
-        description="Predict on a dataset.",
+        description="Evaluate a model on a dataset.",
     )
     parser.add_argument(
         "--model_path",

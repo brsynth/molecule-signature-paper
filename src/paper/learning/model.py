@@ -1015,9 +1015,9 @@ class TransformerModel(pl.LightningModule):
             # We build (batch_size * beam_size * k) candidates before filtering by batch
             # new_candidates : (batch_index, [ (seq, score), ... ])
             #
-            # We will regroup by batch_index (i in [0..batch_size-1]) then filter to keep only 
+            # We will regroup by batch_index (i in [0..batch_size-1]) then filter to keep only
             # the top beam_size sequences
-            # 
+            #
             # For readability, we will reorganize the tensors in (batch, beam_size) shape
             # shape => (batch_size, beam_size, k)
             topk_log_probs = topk_log_probs.view(batch_size, beam_size, k)
