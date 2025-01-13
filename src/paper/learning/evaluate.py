@@ -207,7 +207,8 @@ def run(CONFIG):
     trg_tokenizer = Tokenizer(model_path=CONFIG.target_token_model, fp_type=CONFIG.target)
 
     # Load dataset
-    df = pd.read_csv(CONFIG.pred_test_file, sep="\t", nrows=CONFIG.pred_max_rows)
+    _nrows = None if CONFIG.pred_max_rows == -1 else CONFIG.pred_max_rows
+    df = pd.read_csv(CONFIG.pred_test_file, sep="\t", nrows=_nrows)
     dataset = ListDataset(
         data=df.iloc[:, CONFIG.source_col_idx].to_list(),
         token_fn=src_tokenizer,
