@@ -38,14 +38,14 @@ def tanimoto(fp1, fp2):
     return DataStructs.TanimotoSimilarity(fp1, fp2)
 
 
-def mol_to_ecfp(mol):
+def mol_to_ecfp(mol, include_stereo=True):
     # Get rid of None values
     if mol is None:
         ecfp = None
 
     else:
         try:
-            ecfp = GetMorganGenerator(radius=2, fpSize=2048).GetCountFingerprint(mol)
+            ecfp = GetMorganGenerator(radius=2, fpSize=2048, includeChirality=include_stereo).GetCountFingerprint(mol)  # noqa E501
             # ecfp = [[idx] * count for idx, count in ecfp.GetNonzeroElements().items()]
             # ecfp = [idx for sublist in ecfp for idx in sublist]
 
