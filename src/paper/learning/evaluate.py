@@ -275,9 +275,13 @@ def run(CONFIG):
     if logger.level == logging.DEBUG:
         print(results[["Seq ID", "Prediction Log Prob", "Target match", "Tanimoto", "Canonic match"]])  # noqa E501
 
-    # Return results
-    if "output_file" in CONFIG and CONFIG.output_file is not None:
-        results.to_csv(CONFIG.output_file, sep="\t", index=False)
+    # Write results if output_file is not None
+    try:
+        if CONFIG.output_file is not None:
+            results.to_csv(CONFIG.output_file, sep="\t", index=False)
+
+    except AttributeError:  # CONFIG.output_file is not defined
+        pass
 
     return results
 
