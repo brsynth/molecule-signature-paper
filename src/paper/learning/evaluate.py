@@ -55,6 +55,18 @@ def mol_to_ecfp(mol, include_stereo=True):
     return ecfp
 
 
+def ecfp_to_string(ecfp, sep="-"):
+    # Get rid of None values
+    if ecfp is None:
+        return None
+
+    non_zero = []
+    for ix, count in ecfp.GetNonzeroElements().items():
+        non_zero.extend([ix] * count)
+
+    return sep.join([str(x) for x in non_zero])
+
+
 def mol_to_smiles(mol):
     # Get rid of None values
     if mol is None:
@@ -243,6 +255,7 @@ def run(CONFIG):
             _tmp += [
                 pd.Series({
                     "Seq ID": idx,
+                    "Query ECFP": df.iloc[idx, CONFIG.source_col_idx],
                     "Prediction Tokens": tokens,
                     "Prediction Log Prob": logit,
                     "Target SMILES": df.iloc[idx, CONFIG.target_col_idx],
@@ -271,17 +284,27 @@ def run(CONFIG):
     # Check if canocalized prediction matches target
     results["Canonic match"] = results["Prediction Canonic SMILES"] == results["Target SMILES"]
 
-    # Print results if verbosity is DEBUG
-    if logger.level == logging.DEBUG:
-        print(results[["Seq ID", "Prediction Log Prob", "Target match", "Tanimoto", "Canonic match"]])  # noqa E501
+    # Now format the results for outputs
+    # - Prediction tokens           : Tensor        -> List
+    # - Prediction Mol, Target Mol  : Mol Object    -> remove
+    # - Prediction ECFP, Target ECFP: DataStructs   -> List
+    to_write = results.copy()  # Working on a copy
+    to_write["Prediction Tokens"] = to_write["Prediction Tokens"].apply(lambda x: x.tolist())
+    to_write.drop(columns=["Prediction Mol", "Target Mol"], inplace=True)
+    to_write["Prediction ECFP"] = to_write["Prediction ECFP"].apply(ecfp_to_string)
+    to_write["Target ECFP"] = to_write["Target ECFP"].apply(ecfp_to_string)
 
     # Write results if output_file is not None
     try:
         if CONFIG.output_file is not None:
-            results.to_csv(CONFIG.output_file, sep="\t", index=False)
+            to_write.to_csv(CONFIG.output_file, sep="\t", index=False)
 
     except AttributeError:  # CONFIG.output_file is not defined
         pass
+
+    # Print results if verbosity is DEBUG
+    if logger.level == logging.DEBUG:
+        print(to_write)
 
     return results
 
