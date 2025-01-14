@@ -271,9 +271,6 @@ def run(CONFIG):
     # Check if canocalized prediction matches target
     results["Canonic match"] = results["Prediction Canonic SMILES"] == results["Target SMILES"]
 
-    # Save results as pickle
-    results.to_pickle("results.pkl")
-
     # Print results if verbosity is DEBUG
     if logger.level == logging.DEBUG:
         print(results[["Seq ID", "Prediction Log Prob", "Target match", "Tanimoto", "Canonic match"]])  # noqa E501
