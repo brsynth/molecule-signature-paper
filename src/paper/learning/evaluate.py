@@ -166,9 +166,17 @@ def parse_args():
     )
     parser.add_argument(
         "--device",
+        metavar="STR",
         type=str,
         default="mps",
         help="Device to use for training. Default: %(default)s",
+    )
+    parser.add_argument(
+        "--output_file",
+        metavar="FILE",
+        type=str,
+        default=None,
+        help="Output file path. Use None for no output file. Default: %(default)s",
     )
 
     args = parser.parse_args()
@@ -271,6 +279,9 @@ def run(CONFIG):
         print(results[["Seq ID", "Prediction Log Prob", "Target match", "Tanimoto", "Canonic match"]])  # noqa E501
 
     # Return results
+    if "output_file" in CONFIG and CONFIG.output_file is not None:
+        results.to_csv(CONFIG.output_file, sep="\t", index=False)
+
     return results
 
 
