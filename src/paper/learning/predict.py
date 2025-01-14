@@ -163,25 +163,49 @@ def _run():
     run(CONFIG)
 
 
-def run(CONFIG=None):
+def run(CONFIG=None, query_data=None):
+
+    # Prepare query settings
+    if query_data is not None:
+
+        # Case 1: query_data is a dataframe
+        if isinstance(query_data, pd.DataFrame):
+            assert "Query" in query_data.columns
+            query_df = query_data
+
+        # Case 2: query_data is a series / list / numpy array
+        elif isinstance(query_data, (pd.Series, list, np.ndarray)):
+            query_df = pd.DataFrame({"Query": query_data})
+
+        # Case3: query_data is a string
+        elif isinstance(query_data, str):
+            query_df = pd.DataFrame({"Query": [query_data]})
+
+        # Case 4: Invalid query_data type
+        else:
+            raise ValueError("Invalid query_data type.")
+
+    elif CONFIG.query_file is not None:
+        CONFIG.query_file = Path(CONFIG.query_file)
+        query_df = pd.read_csv(
+            CONFIG.query_file,
+            sep="\t",
+            nrows=None if CONFIG.pred_max_rows == -1 else CONFIG.pred_max_rows,
+            header=None
+        )
+        query_df.rename(columns={0: "Query"}, inplace=True)
+
+    else:
+        CONFIG.query_string = CONFIG.query_string.replace(",", "-")
+        query_df = pd.DataFrame({"Query": [CONFIG.query_string]})
+
     # Load tokenizers
     src_tokenizer = Tokenizer(model_path=CONFIG.model_source_tokenizer, fp_type="ECFP")
     tgt_tokenizer = Tokenizer(model_path=CONFIG.model_target_tokenizer, fp_type="SMILES")
 
-    # Prepare query settings
-    if CONFIG.query_file is not None:
-        CONFIG.query_file = Path(CONFIG.query_file)
-        _nrows = None if CONFIG.pred_max_rows == -1 else CONFIG.pred_max_rows
-        df = pd.read_csv(CONFIG.query_file, sep="\t", nrows=_nrows, header=None)
-        df.rename(columns={0: "ECFP"}, inplace=True)
-
-    else:
-        CONFIG.query_string = CONFIG.query_string.replace(",", "-")
-        df = pd.DataFrame({"ECFP": [CONFIG.query_string]})
-
     # Load dataset
     dataset = ListDataset(
-        data=df["ECFP"].to_list(),
+        data=query_df["Query"].to_list(),
         token_fn=src_tokenizer,
         max_length=CONFIG.pred_max_length,
         max_rows=CONFIG.pred_max_rows,
@@ -206,8 +230,10 @@ def run(CONFIG=None):
             _tmp += [
                 pd.Series({
                     "Query ID": idx,
+                    "Query": query_df["Query"].iloc[idx],
                     "Prediction Tokens": tokens,
-                    "Score": np.exp(logit),
+                    "Prediction Log Prob": logit,
+                    # "Score": np.exp(logit),
                 })
             ]
     results = pd.DataFrame(_tmp)
@@ -215,27 +241,11 @@ def run(CONFIG=None):
     # Decode
     results["Prediction SMILES"] = results["Prediction Tokens"].apply(tgt_tokenizer.decode)
 
-    # Drop prediction tokens (not needed)
-    results.drop(columns=["Prediction Tokens"], inplace=True)
-
     # Add a rank column based on the prediction score of each query
-    results["Rank"] = results.groupby("Query ID")["Score"].rank(ascending=False).astype(int)
+    results["Rank"] = results.groupby("Query ID")["Prediction Log Prob"].rank(ascending=False).astype(int)  # noqa
 
-    # Reorder columns
-    results = results[["Query ID", "Rank", "Prediction SMILES", "Score"]]
-
-    # Output
-    if CONFIG.output_file is not None:
-        results.to_csv(CONFIG.output_file, sep="\t", index=False)
-
-    else:
-        with pd.option_context(
-            "display.max_rows", None,
-            "display.max_columns", None,
-            "display.width", None,
-            "display.max_colwidth", None,
-        ):
-            print(results)
+    # Return data
+    return results
 
 
 if __name__ == "__main__":
