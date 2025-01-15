@@ -105,19 +105,6 @@ def parse_args():
         help="Beam size. Only used if pred_mode is 'beam'. Default: %(default)s.",
     )
     parser.add_argument(
-        "--pred_output_file",
-        metavar="FILE",
-        type=str,
-        help="Output file path.",
-    )
-    parser.add_argument(
-        "--pred_scores",
-        metavar="BOOL",
-        type=lambda x: (str(x).lower() in ["true", "1", "yes"]),
-        default=False,
-        help="Return scores. Default: %(default)s.",
-    )
-    parser.add_argument(
         "--device",
         metavar="STR",
         type=str,
