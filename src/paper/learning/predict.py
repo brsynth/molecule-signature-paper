@@ -5,18 +5,43 @@ from pathlib import Path
 import lightning as L
 import numpy as np
 import pandas as pd
+from rdkit import RDLogger
 from torch.utils.data import DataLoader
 
 from paper.dataset.utils import setup_logger, log_config
 from paper.learning.configure import Config
 from paper.learning.data import ListDataset, collate_fn_simple
 from paper.learning.model import TransformerModel
-from paper.learning.utils import Tokenizer
+from paper.learning.utils import (
+    Tokenizer,
+    mol_from_smiles,
+    mol_to_smiles,
+    mol_to_ecfp,
+    ecfp_to_string,
+)
 
 
 # Logging -----------------------------------------------------------------------------------------
 
 logger = logging.getLogger()
+
+RDLogger.DisableLog("rdApp.error")
+RDLogger.DisableLog('rdApp.warning')
+
+
+# Utils -------------------------------------------------------------------------------------------
+
+def mol_to_ecfp_string(mol) -> str:
+    return ecfp_to_string(mol_to_ecfp(mol))
+
+
+def refine_results(results: pd.DataFrame) -> pd.DataFrame:
+    results["Prediction Prob"] = results["Prediction Log Prob"].apply(np.exp)
+    results["Prediction Mol"] = results["Prediction SMILES"].apply(mol_from_smiles)
+    results["Prediction ECFP"] = results["Prediction Mol"].apply(mol_to_ecfp_string)
+    results["Prediction Canonic SMILES"] = results["Prediction Mol"].apply(mol_to_smiles)
+
+    return results
 
 
 # Args --------------------------------------------------------------------------------------------
@@ -147,7 +172,35 @@ def parse_args():
 
 def _run():
     CONFIG = parse_args()
-    run(CONFIG)
+    results = run(CONFIG)
+
+    if CONFIG.output_file is not None or CONFIG.verbosity == "DEBUG":
+        # Comute additional columns
+        results = refine_results(results)
+
+        # Columns to display
+        _tmp = results[[
+            "Query ID",
+            "Query",
+            "Rank",
+            "Prediction SMILES",
+            "Prediction ECFP",
+            "Prediction Canonic SMILES",
+            "Prediction Prob"
+        ]]
+
+        if CONFIG.output_file is not None:
+            _tmp.to_csv(CONFIG.output_file, sep="\t", index=False)
+
+        if CONFIG.verbosity == "DEBUG":
+            # Enable printing large dataframes
+            pd.set_option("display.max_rows", None)
+            pd.set_option("display.max_columns", None)
+            pd.set_option("display.width", None)
+            pd.set_option("display.max_colwidth", None)
+
+            # Print
+            print(_tmp)
 
 
 def run(CONFIG=None, query_data=None):
