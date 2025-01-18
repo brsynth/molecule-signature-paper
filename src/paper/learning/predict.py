@@ -269,9 +269,9 @@ def run(CONFIG=None, query_data=None):
         for tokens, logit in result:
             _tmp += [
                 pd.Series({
-                    "Query ID": idx,
-                    "Query": query_df["Query"].iloc[idx],
-                    "Prediction Tokens": tokens,
+                    "Query ID": idx+1,  # 1-indexed
+                    "Query ECFP": query_df["Query"].iloc[idx],
+                    "Prediction Tokens": tokens.tolist(),
                     "Prediction Log Prob": logit,
                     # "Score": np.exp(logit),
                 })
