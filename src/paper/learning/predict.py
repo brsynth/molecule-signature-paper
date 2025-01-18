@@ -281,9 +281,6 @@ def run(CONFIG=None, query_data=None):
     # Decode
     results["Prediction SMILES"] = results["Prediction Tokens"].apply(tgt_tokenizer.decode)
 
-    # Add a rank column based on the prediction score of each query
-    results["Rank"] = results.groupby("Query ID")["Prediction Log Prob"].rank(ascending=False).astype(int)  # noqa
-
     # Return data
     return results
 

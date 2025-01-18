@@ -14,7 +14,11 @@ from rdkit.Chem.AllChem import GetMorganGenerator
 from signature.utils import mol_from_smiles
 from paper.learning.config import Config
 from paper.learning.data import ListDataset, collate_fn_simple
-from paper.learning.utils import Tokenizer
+from paper.learning.utils import (
+    Tokenizer,
+    tanimoto,
+    mol_to_ecfp,
+)
 from paper.learning.model import TransformerModel
 from paper.dataset.utils import (
     setup_logger,
@@ -22,67 +26,15 @@ from paper.dataset.utils import (
 )
 
 # Logging -----------------------------------------------------------------------------------------
+
 logger = logging.getLogger()
 
 RDLogger.DisableLog("rdApp.error")
 RDLogger.DisableLog('rdApp.warning')
 
 
-# Utils -------------------------------------------------------------------------------------------
-def tanimoto(fp1, fp2):
-    # Get rid of None values
-    if fp1 is None or fp2 is None:
-        return None
-
-    # Compute Tanimoto similarity
-    return DataStructs.TanimotoSimilarity(fp1, fp2)
-
-
-def mol_to_ecfp(mol, include_stereo=True):
-    # Get rid of None values
-    if mol is None:
-        ecfp = None
-
-    else:
-        try:
-            ecfp = GetMorganGenerator(radius=2, fpSize=2048, includeChirality=include_stereo).GetCountFingerprint(mol)  # noqa E501
-            # ecfp = [[idx] * count for idx, count in ecfp.GetNonzeroElements().items()]
-            # ecfp = [idx for sublist in ecfp for idx in sublist]
-
-        except Exception:
-            ecfp = None
-
-    return ecfp
-
-
-def ecfp_to_string(ecfp, sep="-"):
-    # Get rid of None values
-    if ecfp is None:
-        return None
-
-    non_zero = []
-    for ix, count in ecfp.GetNonzeroElements().items():
-        non_zero.extend([ix] * count)
-
-    return sep.join([str(x) for x in non_zero])
-
-
-def mol_to_smiles(mol):
-    # Get rid of None values
-    if mol is None:
-        smiles = None
-
-    else:
-        try:
-            smiles = MolToSmiles(mol)
-
-        except Exception:
-            smiles = None
-
-    return smiles
-
-
 # Args --------------------------------------------------------------------------------------------
+
 def parse_args():
     CONFIG = Config(db="emolecules", source="ECFP", target="SMILES", mode="predict")
     parser = argparse.ArgumentParser(
@@ -208,6 +160,7 @@ def parse_args():
 
 
 # Main --------------------------------------------------------------------------------------------
+
 def _run():
     CONFIG = parse_args()
     run(CONFIG)
