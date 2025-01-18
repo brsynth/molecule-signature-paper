@@ -114,33 +114,6 @@ def mol_to_smiles(mol: Chem.Mol) -> str:
     return smiles
 
 
-def ecfp_to_string(ecfp: DataStructs, sep="-") -> str:
-    """Convert ECFP to a string.
-
-    Bit are duplicated based on their count.
-
-    Parameters
-    ----------
-    ecfp : rdkit.DataStructs
-        ECFP fingerprint.
-    sep : str, optional
-        Separator for the string, by default "-".
-
-    Returns
-    -------
-    str
-        ECFP as a string.
-    """
-    if ecfp is None:
-        return None
-
-    non_zero = []
-    for ix, count in ecfp.GetNonzeroElements().items():
-        non_zero.extend([ix] * count)
-
-    return sep.join([str(x) for x in non_zero])
-
-
 def mol_to_ecfp(mol: Chem.Mol, radius=2, nbits=2048, include_chirality: bool = True) -> DataStructs:
     """Get ECFP fingerprint for a molecule.
 
@@ -169,6 +142,42 @@ def mol_to_ecfp(mol: Chem.Mol, radius=2, nbits=2048, include_chirality: bool = T
 
     except Exception:
         return None
+
+
+def ecfp_to_string(ecfp: DataStructs, sep="-") -> str:
+    """Convert ECFP to a string.
+
+    Bit are duplicated based on their count.
+
+    Parameters
+    ----------
+    ecfp : rdkit.DataStructs
+        ECFP fingerprint.
+    sep : str, optional
+        Separator for the string, by default "-".
+
+    Returns
+    -------
+    str
+        ECFP as a string.
+    """
+    if ecfp is None:
+        return None
+
+    non_zero = []
+    for ix, count in ecfp.GetNonzeroElements().items():
+        non_zero.extend([ix] * count)
+
+    return sep.join([str(x) for x in non_zero])
+
+
+def tanimoto(fp1, fp2):
+    # Get rid of None values
+    if fp1 is None or fp2 is None:
+        return None
+
+    # Compute Tanimoto similarity
+    return DataStructs.TanimotoSimilarity(fp1, fp2)
 
 
 # Tokens ------------------------------------------------------------------------------------------
