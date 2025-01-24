@@ -8,17 +8,18 @@ import pandas as pd
 from rdkit import RDLogger
 from torch.utils.data import DataLoader
 
-from paper.dataset.utils import setup_logger, log_config
-from paper.learning.configure import Config
-from paper.learning.data import ListDataset, collate_fn_simple
-from paper.learning.model import TransformerModel
-from paper.learning.utils import (
-    Tokenizer,
+from paper.dataset.utils import (
+    setup_logger,
+    log_config,
     mol_from_smiles,
     mol_to_smiles,
     mol_to_ecfp,
     ecfp_to_string,
 )
+from paper.learning.configure import Config
+from paper.learning.data import ListDataset, collate_fn_simple
+from paper.learning.model import TransformerModel
+from paper.learning.utils import Tokenizer
 
 
 # Logging -----------------------------------------------------------------------------------------
@@ -36,10 +37,10 @@ def mol_to_ecfp_string(mol) -> str:
 
 
 def refine_results(results: pd.DataFrame) -> pd.DataFrame:
-    results["Prediction Prob"] = results["Prediction Log Prob"].apply(np.exp)
-    results["Prediction Mol"] = results["Prediction SMILES"].apply(mol_from_smiles)
-    results["Prediction ECFP"] = results["Prediction Mol"].apply(mol_to_ecfp_string)
-    results["Prediction Canonic SMILES"] = results["Prediction Mol"].apply(mol_to_smiles)
+    results["Predicted Prob"] = results["Predicted Log Prob"].apply(np.exp)
+    results["Predicted Mol"] = results["Predicted SMILES"].apply(mol_from_smiles)
+    results["Predicted ECFP"] = results["Predicted Mol"].apply(mol_to_ecfp_string)
+    results["Predicted Canonic SMILES"] = results["Predicted Mol"].apply(mol_to_smiles)
 
     return results
 
@@ -183,10 +184,10 @@ def _run():
             "Query ID",
             "Query",
             "Rank",
-            "Prediction SMILES",
-            "Prediction ECFP",
-            "Prediction Canonic SMILES",
-            "Prediction Prob"
+            "Predicted SMILES",
+            "Predicted ECFP",
+            "Predicted Canonic SMILES",
+            "Predicted Prob"
         ]]
 
         if CONFIG.output_file is not None:
@@ -271,15 +272,15 @@ def run(CONFIG=None, query_data=None):
                 pd.Series({
                     "Query ID": idx+1,  # 1-indexed
                     "Query ECFP": query_df["Query"].iloc[idx],
-                    "Prediction Tokens": tokens.tolist(),
-                    "Prediction Log Prob": logit,
+                    "Predicted Tokens": tokens.tolist(),
+                    "Predicted Log Prob": logit,
                     # "Score": np.exp(logit),
                 })
             ]
     results = pd.DataFrame(_tmp)
 
     # Decode
-    results["Prediction SMILES"] = results["Prediction Tokens"].apply(tgt_tokenizer.decode)
+    results["Predicted SMILES"] = results["Predicted Tokens"].apply(tgt_tokenizer.decode)
 
     # Return data
     return results
