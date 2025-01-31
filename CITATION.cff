@@ -14,7 +14,7 @@ authors:
     given-names: "Jean-Loup"
     orcid: "https://orcid.org/0000-0003-4274-2953"
 title: "Supporting content for the 'Reverse Engineering Molecules from Fingerprints through Deterministic Enumeration and Generative Models' paper."
-version: 2.2.0
+version: 3.0.0
 doi: TO DEFINE
 date-released: 2025-01-31
 url: "https://github.com/brsynth/molecule-signature-paper"
