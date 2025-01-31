@@ -1,5 +1,7 @@
 # Data organization
 
+After the execution preparing datasets, tokens, and training models, the `data` directory will be organized as follows:
+
 ```text
 .
 ├── emolecules
