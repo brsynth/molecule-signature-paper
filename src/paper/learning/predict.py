@@ -49,10 +49,32 @@ def mol_to_ecfp_string(mol) -> str:
 
 
 def refine_results(results: pd.DataFrame) -> pd.DataFrame:
+    """Refine the results dataframe.
+
+    Cautions: This function assumes that the results dataframe has the following columns:
+        - Predicted SMILES
+        - Predicted Log Prob
+
+    Parameters
+    ----------
+    results : pd.DataFrame
+        Results dataframe.
+
+    Returns
+    -------
+    pd.DataFrame
+        Refined results dataframe.
+    """
+
+    # Let's populate the prediction side
     results["Predicted Prob"] = results["Predicted Log Prob"].apply(np.exp)
-    results["Predicted Mol"] = results["Predicted SMILES"].apply(mol_from_smiles)
-    results["Predicted ECFP"] = results["Predicted Mol"].apply(mol_to_ecfp_string)
+    results["Predicted Mol"] = results["Predicted SMILES"].apply(mol_from_smiles_with_exception)
+    results["Predicted ECFP Object"] = results["Predicted Mol"].apply(mol_to_ecfp)
+    results["Predicted ECFP"] = results["Predicted ECFP Object"].apply(ecfp_to_string)
     results["Predicted Canonic SMILES"] = results["Predicted Mol"].apply(mol_to_smiles)
+
+    # Now let's check for Mol validity
+    results["SMILES Syntaxically Valid"] = results["Predicted Mol"].notnull()
 
     return results
 
@@ -60,15 +82,6 @@ def refine_results(results: pd.DataFrame) -> pd.DataFrame:
 # Args --------------------------------------------------------------------------------------------
 
 def parse_args():
-    # query-file: str or query-string: str
-    # if query-file:
-    #   one ECFP per line
-    # else query-string
-    # beam-size: int, opt, default=5
-    # batch-size: int, opt, default=32
-    # output-file: str, opt, default=None
-    # scores: bool, opt, default=False
-    # model: str, opt, default=CONFIG
 
     parser = argparse.ArgumentParser(
         prog=Path(__file__).name,
