@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "molecule-signature-paper"
-version = "2.1.0"
+version = "3.0.0"
 description = """\
             Repository supporting the publication 'Reverse \
             Engineering Molecules from Fingerprints through \

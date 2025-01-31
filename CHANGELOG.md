@@ -1,3 +1,55 @@
+## 3.0.0 (2025-01-31)
+
+### Feat
+
+- **predict**: predict call from CLI now always outputs something
+- **2.enumeration_results**: notebook to perform the molecule enumeration
+- **1.enumeration_create_alphabets**: notebook to create alphabets
+- **notebooks**: add  notebook
+- **configure**: add interface for simple configuration
+- **predict**: add interface for predicting (without evaluation)
+- **model**: fully batch-vectorized version for beam search
+- **predict**: test for equality of canonic SMILES
+- **predict**: decode beam in parallel
+
+### Fix
+
+- **predict**: convert python objects to strings
+- **predict**: dataclass attribute poorly tested
+- **predict**: remove pickle writing
+- **evaluate**: add output file handling to write results
+- **evaluate**: correctly deal with the max number of rows
+- **evaluate**: include chirality in ECFP
+- **predict**: stop crashing when beam size > vocab size
+- **predict**: allow selection of the accelerator device
+- **predict**: column indexes
+
+### Refactor
+
+- **predict**: update default arg values
+- **predict**: update result refinements
+- **configure**: add default output path to None
+- **config**: remove unused method
+- **imports**: refine
+- add empty data folder
+- **notebooks**: merge cells
+- **notebooks**: rename nb
+- **notebooks**: rename notebook for fig 2
+- **utils**: move utilities functions
+- **evaluate**: remove file
+- **predict**: make col names more explicit
+- **evaluate**: sweep code
+- **utils**: sweep code
+- **predict**: refine outputs
+- **predict**: remove unused args
+- **utils**: additional shared functions
+- **predict**: delagate results refining to subsequent code
+- **predict**: allow calls from other script
+- **predict**: better print
+- **predict**: improve imports
+- **predict**: print result to stdout on request
+- **predict**: print default values
+
 ## 2.1.0 (2025-01-07)
 
 ### Feat
