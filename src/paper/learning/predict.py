@@ -173,7 +173,7 @@ def parse_args():
         "--verbosity",
         metavar="STR",
         type=str,
-        default="DEBUG",
+        default="INFO",
         help="Verbosity level. Default: %(default)s.",
     )
 
@@ -299,7 +299,6 @@ def run(CONFIG=None, query_data=None):
                     "Query ECFP": query_df["Query"].iloc[idx],
                     "Predicted Tokens": tokens.tolist(),
                     "Predicted Log Prob": logit,
-                    # "Score": np.exp(logit),
                 })
             ]
     results = pd.DataFrame(_tmp)
