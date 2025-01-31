@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+message: If you use this code, please cite it as below.
+authors:
+  - family-names: "Duigou"
+    given-names: "Thomas"
+    orcid: "https://orcid.org/0000-0002-2649-2950"
+  - family-names: "Meyer"
+    given-names: "Philippe"
+    orcid: "https://orcid.org/0000-0002-0618-2947"
+  - family-names: "Gricourt"
+    given-names: "Guillaume"
+    orcid: "https://orcid.org/0000-0003-0143-5535"
+  - family-names: "Faulon"
+    given-names: "Jean-Loup"
+    orcid: "https://orcid.org/0000-0003-4274-2953"
+title: "Supporting content for the 'Reverse Engineering Molecules from Fingerprints through Deterministic Enumeration and Generative Models' paper."
+version: 2.2.0
+doi: TO DEFINE
+date-released: 2025-01-31
+url: "https://github.com/brsynth/molecule-signature-paper"
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Meyer"
+    given-names: "Philippe"
+    orcid: "https://orcid.org/0000-0002-0618-2947"
+  - family-names: "Duigou"
+    given-names: "Thomas"
+    orcid: "https://orcid.org/0000-0002-2649-2950"
+  - family-names: "Gricourt"
+    given-names: "Guillaume"
+    orcid: "https://orcid.org/0000-0003-0143-5535"
+  - family-names: "Faulon"
+    given-names: "Jean-Loup"
+    orcid: "https://orcid.org/0000-0003-4274-2953"
+  doi:
+  journal: in preparation
+  month:
+  start:
+  end:
+  title: "Reverse Engineering Molecules from Fingerprints through Deterministic Enumeration and Generative Models."
+  issue:
+  volume:
+  year:
