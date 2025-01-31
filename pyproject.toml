@@ -1,35 +1,42 @@
 [build-system]
-requires = [
-    "setuptools>=42",
-    "wheel",
-    "pyyaml"
-]
+requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "signature-paper"
+name = "molecule-signature-paper"
 version = "2.1.0"
-description = "Code supporting the paper 'Getting Molecules from their Fingerprints: Generative Models vs. Deterministic Enumeration'"
+description = """\
+            Repository supporting the publication 'Reverse \
+            Engineering Molecules from Fingerprints through \
+            Deterministic Enumeration and Generative Models.'\
+            """
+keywords = [
+    "chemoinformatics",
+    "generative model",
+    "molecule fingerprint",
+    "molecule enumeration",
+    "molecule generation",
+    "reverse engineering",
+    "signature",
+]
 authors = [
-  {name = "Thomas Duigou", email = "thomas.duigou@inrae.fr"},
-  {name = "Jean-Loup Faulon", email = "thomas.duigou@inrae.fr"},
-  {name = "Guillaume Gricourt", email = "guillaume.gricourt@inrae.fr"},
-  {name = "Philippe Meyer", email = "philippe.meyer@inrae.fr"},
+    {name = "Thomas Duigou", email = "thomas.duigou@inrae.fr"},
+    {name = "Jean-Loup Faulon", email = "jean-loup.faulon@inrae.fr"},
+    {name = "Guillaume Gricourt", email = "guillaume.gricourt@inrae.fr"},
+    {name = "Philippe Meyer", email = "philippe.meyer@inrae.fr"},
+]
+maintainers = [
+    {name = "Thomas Duigou", email = "thomas.duigou@inrae.fr"}
 ]
 readme = {file = "README.md", content-type = "text/markdown"}
 license = {text = "MIT License"}
-keywords = [
-    "chemistry",
-    "chemoinformatics",
-    "deterministic enumeration",
-    "fingerprint",
-    "generative model",
-    "molecular generation",
-    "signature",
-]
+requires-python = ">= 3.10"
 
 [project.urls]
-Repository = "https://github.com/brsynth/signature-paper"
+Homepage = "https://github.com/brsynth/molecule-signature-paper"
+Repository = "https://github.com/brsynth/molecule-signature-paper"
+Issues = "https://github.com/brsynth/molecule-signature-paper/issues"
+Changelog = "https://github.com/brsynth/molecule-signature-paper/blob/main/CHANGELOG.md"
 
 [tool.commitizen]
 name = "cz_conventional_commits"
