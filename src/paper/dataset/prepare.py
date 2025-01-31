@@ -17,11 +17,12 @@ from rdkit.Chem.Descriptors import ExactMolWt
 from rdkit.Chem.rdMolDescriptors import CalcNumHeavyAtoms, CalcNumRings
 from sklearn.model_selection import KFold
 
-from signature.utils import mol_from_smiles, mol_filter
 from paper.dataset.utils import (
     setup_logger,
     log_config,
     open_file,
+    mol_from_smiles,
+    mol_filter,
     assign_stereo,
     get_smiles,
     get_signature,

@@ -15,7 +15,7 @@ from rdkit.Chem import AllChem, DataStructs
 from rdkit.Chem.AllChem import GetMorganGenerator
 from rdkit.Chem.EnumerateStereoisomers import StereoEnumerationOptions, EnumerateStereoisomers
 
-from signature.Signature import MoleculeSignature
+from molsig.Signature import MoleculeSignature
 
 
 # Logging -----------------------------------------------------------------------------------------
