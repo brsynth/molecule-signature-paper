@@ -185,10 +185,8 @@ def parse_args():
     # Update config with args
     CONFIG = Config()
     for key, value in vars(args).items():
-        if value is not None:
-            setattr(CONFIG, key, value)
+        setattr(CONFIG, key, value)
 
-    print(CONFIG.to_dict())
     log_config(CONFIG, logger)
 
     return CONFIG
@@ -197,36 +195,34 @@ def parse_args():
 # Main --------------------------------------------------------------------------------------------
 
 def _run():
-    CONFIG = parse_args()
-    results = run(CONFIG)
 
-    if CONFIG.output_file is not None or CONFIG.verbosity == "DEBUG":
-        # Comute additional columns
-        results = refine_results(results)
+    CONFIG = parse_args()  # Get config
+    results = run(CONFIG)  # Run prediction
+    results = refine_results(results)  # Refine results
 
-        # Columns to display
+    # Save results to file
+    if CONFIG.output_file is not None:
+        results.to_csv(CONFIG.output_file, sep="\t", index=False)
+
+    # Print results to stdout..
+
+    # Enable printing large dataframes
+    pd.set_option("display.max_rows", None)
+    pd.set_option("display.max_columns", None)
+    pd.set_option("display.width", None)
+    pd.set_option("display.max_colwidth", None)
+
+    if CONFIG.verbosity == "DEBUG":
+        print(results)
+
+    else:
         _tmp = results[[
             "Query ID",
-            "Query",
-            "Rank",
             "Predicted SMILES",
-            "Predicted ECFP",
-            "Predicted Canonic SMILES",
-            "Predicted Prob"
+            "Predicted Prob",
+            "SMILES Syntaxically Valid"
         ]]
-
-        if CONFIG.output_file is not None:
-            _tmp.to_csv(CONFIG.output_file, sep="\t", index=False)
-
-        if CONFIG.verbosity == "DEBUG":
-            # Enable printing large dataframes
-            pd.set_option("display.max_rows", None)
-            pd.set_option("display.max_columns", None)
-            pd.set_option("display.width", None)
-            pd.set_option("display.max_colwidth", None)
-
-            # Print
-            print(_tmp)
+        print(_tmp)
 
 
 def run(CONFIG=None, query_data=None):
