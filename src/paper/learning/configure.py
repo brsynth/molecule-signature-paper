@@ -27,6 +27,8 @@ class Config:
     pred_mode: str = "greedy"  # or "beam"
     pred_beam_size: int = 10
 
+    output_file: Path = field(default=None)
+
     def __dict__(self):
         def serialize(obj):
             if isinstance(obj, Path):
