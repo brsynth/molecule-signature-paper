@@ -1,209 +1,256 @@
-# Retrosig
+# Supporting content for the Molecule Signature paper
 
-## Install
+[![Github Version](https://img.shields.io/github/v/release/brsynth/molecule-signature?display_name=tag&sort=semver)](version)
+[![Github Licence](https://img.shields.io/github/license/brsynth/molecule-signature)](LICENSE.md)
 
-```bash
-conda env create -f recipes/environment.yaml
-conda activate signature-paper
-pip install --no-deps -e .
-```
+This repository contains code to support the Molecule Signature publication. See citation for details.
 
-Since the signature is not yet publicly available, the signature code has to be
-installed from the source code:
+## Table of Contents
+- [1. Repository structure](#1-repository-structure)
+  - [1.1. Datasets](#11-datasets)
+  - [1.2. Supporting Notebooks](#12-supporting-notebooks)
+  - [1.3. Source code](#13-source-code)
+- [2. Installation](#2-installation)
+- [3. Usage](#3-usage)
+  - [3.1. Preparing datasets](#31-preparing-datasets)
+  - [3.2 Deterministic enumeration](#32-deterministic-enumeration)
+  - [3.3. Train generative models](#33-train-generative-models)
+  - [3.4. Predict molecules with generative models](#34-predict-molecules-with-generative-models)
+- [Citation](#citation)
+- [License](#license)
 
-```bash
-conda activate signature-paper
-git clone git@github.com:brsynth/signature.git lib/signature  # Credentials required
-pushd lib/signature
-pip install --no-deps -e .
-popd
-```
-
-## Code architecture
+## 1. Repository structure
 
 ```text
-❯ tree -L 3 src
 .
-└── paper
-    ├── dataset  # code for preparing datasets for learning
-    │   ├── prepare.py
-    │   ├── tokens.py
-    │   └── utils.py
-    └── learning  # code for generative model
-        ├── config.py
-        ├── data.py
-        ├── model.py
-        ├── predict.py
-        ├── train.py
-        └── utils.py
+├── data       < placeholder for data files >
+│   └── ..
+├── notebooks  < supporting jupyter notebooks >
+│   ├── 1.enumeration_create_alphabets.ipynb
+│   ├── 2.enumeration_results.ipynb
+│   ├── 3.analysis_alphabets.ipynb
+│   ├── 4.generation_evaluation.ipynb
+│   ├── 5.generation_recovery.ipynb
+│   └── handy.py
+└── src        < source code for data preparation and modeling >
+    └── paper
+        ├── dataset
+        └── learning
+
 ```
 
-## Data organization
+### 1.1. Datasets
 
-```text
-❯ tree -L 3 data
-data
-├── emolecules          # data about the emolecules database
-│   ├── download        # source data
-│   │   └── emol_raw_2024-07-01.tsv.gz
-│   ├── sampling        # sampled subset
-│   │   ├── 0-sample_1k.tsv
-│   │   ├── 1-sample_10k.tsv
-│   │   └── 2-sample_5000k.tsv
-│   ├── splitting       # train / valid / test subsets from sampling
-│   │   ├── test.tsv
-│   │   ├── train.tsv
-│   │   └── valid.tsv
-│   └── tokens         # alphabets file from / for Sentence Piece tokenizer
-│       ...
-│       ├── SMILES.log
-│       ├── SMILES.model
-│       ├── SMILES.stats
-│       ├── SMILES.stats_fp
-│       └── SMILES.vocab
-└── metanetx            # data about the metanetx database
-    ├── analysis        # graphical distributions of some chemical features accross subsets
-    │   ├── 0-sample_1k
-    │   ├── 1-sample_10k
-    │   ├── 2-sample_5000k
-    │   ├── 4_deduped
-    │   ├── comparative
-    │   ├── test
-    │   ├── train_fold0
-    │   ...
-    ├── dataset         # step by step datasets
-    │   ├── 1_reshaped.tsv
-    │   ├── 2_filtered.tsv
-    │   ├── 3_fingerprints.tsv
-    │   └── 4_deduped.tsv
-    ├── download        # source data
-    │   └── mnx_raw_4_4.tsv
-    ├── sampling        # sampled subset (from dataset/4_deduped.tsv)
-    │   ├── 0-sample_1k.tsv
-    │   ├── 1-sample_10k.tsv
-    │   └── 2-sample_5000k.tsv
-    ├── splitting       # 5-fold split subsets
-    │   ├── test.tsv
-    │   ├── train_fold0.tsv
-    │   ├── ...
-    │   ├── valid_fold0.tsv
-    │   └── ...
-    └── tokens          # alphabets file from / for Sentence Piece tokenizer
-        ...
-        ├── SMILES.log
-        ├── SMILES.model
-        ├── SMILES.stats
-        ├── SMILES.stats_fp
-        └── SMILES.vocab
-```
+The `data` directory is the place where put required data files to be used by the code. `emolecules` and `metanetx` subdirectories are created at execution time. See [data organization README](data/README.md) for details.
 
-## Run
+### 1.2. Supporting Notebooks
 
-### Prepare datasets (download, reshape, filter, sample, analyze)
+The `notebooks` directory contains Jupyter notebooks that support figures and tables from the paper. The `handy.py` file contains utility functions that are used in some of the notebooks.
 
-```bash
-❯ python src/paper/dataset/prepare.py --help
-usage: prepare.py [-h] [--db DB] [--show_progress] [--workers WORKERS] [--download_again]
-                  [--reshape_again] [--filter_again] [--filter_max_mw MW] [--fingerprints_redo]
-                  [--fingerprints_resume] [--dedupe_again] [--dedupe_from_db EXTERNAL DB]
-                  [--dedupe_from_db_again] [--sample_again] [--sample_sizes SIZE [SIZE ...]]
-                  [--sample_seed SEED] [--split_test_proportion PROPORTION]
-                  [--split_valid_proportion PROPORTION] [--split_method METHOD]
-                  [--split_num_folds FOLDS] [--split_seed SEED] [--split_again] [--analyze_redo]
-                  [--analyze_chunksize CHUNKSIZE] [--compare_redo]
-                  {all,download,reshape,filter,fingerprints,dedupe,sample,split,analyze,compare}
-                  [{all,download,reshape,filter,fingerprints,dedupe,sample,split,analyze,compare} ...]
+### 1.3. Source code
 
-Prepare dataset
+The `src` directory contains the source code for the paper. The code is organized in two main directories: `dataset` for preparing datasets and `learning` for training and using the generative model. See [Usage](#3-usage) for details on how to run the code.
 
-positional arguments:
-  {all,download,reshape,filter,fingerprints,dedupe,sample,split,analyze,compare}
-                        Actions to perform (default: ['all'])
+## 2. Installation
 
-options:
-  -h, --help            show this help message and exit
+The following steps will set up a `signature-paper` conda environment.
 
-General options:
-  --db DB               Database to use (default: metanetx)
-  --show_progress       Show progress bar (default: False)
-  --workers WORKERS     Number of workers (default: 5)
+0. **Install Conda:**
 
-Download options:
-  --download_again      Download again database (default: False)
+    The conda package manager is required. If you do not have it installed, you
+    can download it from [here](https://docs.conda.io/en/latest/miniconda.html).
+    Follow the instructions on the page to install Conda. For example, on
+    Windows, you would download the installer and run it. On macOS and Linux,
+    you might use a command like:
 
-Reshape options:
-  --reshape_again       Reshape again (default: False)
+    ```bash
+    bash ~/Downloads/Miniconda3-latest-Linux-x86_64.sh
+    ```
 
-Filter options:
-  --filter_again        Filter again (default: False)
-  --filter_max_mw MW    Maximum molecular weight to filter (default: 500)
+    Follow the prompts on the installer to complete the installation.
 
-Fingerprints options:
-  --fingerprints_redo   Recompute fingerprints (default: False)
-  --fingerprints_resume
-                        Resume computation of fingerprints (default: False)
+1. **Install dependencies:**
 
-Deduplicate options:
-  --dedupe_again        Deduplicate again (default: False)
-  --dedupe_from_db EXTERNAL DB
-                        Deduplicate from external dataset (only used when main DB is emolcules,
-                        default: metanetx)
-  --dedupe_from_db_again
-                        Deduplicate from external dataset again (default: False)
+    ```bash
+    conda env create -f recipes/environment.yaml
+    conda activate signature-paper
+    pip install --no-deps -e .
+    ```
 
-Sample options:
-  --sample_again        Sample again (default: False)
-  --sample_sizes SIZE [SIZE ...]
-                        Size of samples (default: [1000, 10000, 5000000])
-  --sample_seed SEED    Random seed for sampling (default: 42)
+2. **Download data:**
 
-Split options:
-  --split_test_proportion PROPORTION
-                        Proportion of test set (default: 0.1)
-  --split_valid_proportion PROPORTION
-                        Proportion of validation set (only for 'train_valid_split' method)
-                        (default: 0.1)
-  --split_method METHOD
-                        Split method (default: kfold; choices: train_valid_split, kfold)
-  --split_num_folds FOLDS
-                        Number of folds (only for 'kfold' method) (default: 5)
-  --split_seed SEED     Random seed for splitting (default: 42)
-  --split_again         Split again (default: False)
+    Precomputed alphabets, trained generative models and most important datasets are available as a Zenodo archive: <https://doi.org/10.5281/zenodo.5528831>. Extract the files and place them in the `data` directory.
 
-Analyze options:
-  --analyze_redo        Redo analysis (default: False)
-  --analyze_chunksize CHUNKSIZE
-                        Chunksize for analysis (default: 10000)
+3. **Optionnaly (for dev): set the signature package from source**
 
-Compare options:
-  --compare_redo        Redo comparisons (default: False)
-```
+    Installing the signature code from source is optional may be useful for development
+    purposes. This will allow you to make changes to the signature code and see the
+    effects in the paper code without having to reinstall the package.
 
-### Build tokenizer models
+    ```bash
+    conda activate signature-paper
+    
+    # Remove the packaged version
+    conda remove molecule-signature
+    
+    # Set up the source version
+    git clone git@github.com:brsynth/molecule-signature.git lib/molecule-signature
+    pushd lib/molecule-signature
+    pip install --no-deps -e .
+    popd
+    ```
 
-```bash
-❯ python src/paper/dataset/tokens.py --help
-usage: tokens.py [-h] [--db DB] [--token_fingerprints_types FINGERPRINT [FINGERPRINT ...]]
-                 [--token_vocab_sizes SIZE [SIZE ...]] [--token_min_presence PRESENCE]
-                 [--verbosity LEVEL]
+## 3. Usage
 
-Tokenize dataset
+### 3.1. Preparing datasets
 
-options:
-  -h, --help            show this help message and exit
-  --db DB               Dataset to tokenize (default: metanetx; choices: metanetx, emolecules)
-  --token_fingerprints_types FINGERPRINT [FINGERPRINT ...]
-                        Fingerprints to tokenize (default: ['SMILES', 'SIGNATURE', 'ECFP'])
-  --token_vocab_sizes SIZE [SIZE ...]
-                        Vocabulary size for each fingerprint (default: {'SMILES': 0, 'SIGNATURE':
-                        0, 'ECFP': 0})
-  --token_min_presence PRESENCE
-                        Minimal presence of a token in the dataset (default: 0.0001)
-  --verbosity LEVEL     Verbosity level (default: INFO)
-  ```
+The `src/paper/dataset` module contains code to prepare datasets for training and evaluation. The `prepare` command will create the datasets in the `data` directory.
 
-### Train models
+- **Getting help**
 
-### Install chemigen
+    ```bash
+    python -u src/paper/dataset/prepare.py --help
+    python -u src/paper/dataset/tokens.py --help
+    ```
 
-See: [https://github.com/brsynth/chemigen]
+- **eMolecules dataset**
+
+    Prepare the emolecules dataset. **Cautions:** the emolecules dataset is large and may take a long time to download and process (as well as a substantial disk space and RAM consumption).
+
+    ```bash
+    # Datasets
+    python src/paper/dataset/prepare.py all --db emolecules --workers 10  --show_progress --split_method train_valid_split
+
+    # Tokenizers
+    python src/paper/dataset/tokens.py --db emolecules --token_min_presence 0.0001
+    ```
+
+- **MetaNetX dataset**
+
+    ```bash
+    # Datasets
+    python src/paper/dataset/prepare.py all --db metanetx --workers 10 --show_progress
+
+    # Tokenizers
+    python src/paper/dataset/tokens.py --db metanetx --token_min_presence 0.0001
+    ```
+
+### 3.2 Deterministic enumeration
+
+Users will find explanations and examples on how to use the deterministic enumeration code in the notebooks folder, in particular:
+
+- [1.enumeration_create_alphabets.ipynb](notebooks/1.enumeration_create_alphabets.ipynb): Create alphabets for deterministic enumeration.
+- [2.enumeration_results.ipynb](notebooks/2.enumeration_results.ipynb): Get deterministic enumeration results.
+- [3.analysis_alphabets.ipynb](notebooks/3.analysis_alphabets.ipynb): Analyze alphabets.
+
+### 3.3. Train generative models
+
+**Cautions**: settings may need to be adjusted depending on the available resources (e.g., GPU memory, disk space, etc.) and the HPC environment.
+
+- **Getting help**
+
+    ```bash
+    python -u src/paper/learning/train.py --help
+    ```
+
+- **Pre-train model (from eMolecules datasets)**
+
+    ```bash
+    python src/paper/learning/train.py \
+        --db emolecules \
+        --source ECFP \
+        --target SMILES \
+        --dataloader_num_workers 3 \
+        --enable_mixed_precision True \
+        --ddp_num_nodes 1 \
+        --split_method train_valid_split \
+        --train_fold_index 0 \
+        --data_max_rows -1 \
+        --out_dir ${WORK}/hpc \
+        --out_sub_dir NULL \
+        --model_dim 512 \
+        --model_num_encoder_layers 3 \
+        --model_num_decoder_layers 3 \
+        --scheduler_method plateau \
+        --scheduler_lr 0.0001 \
+        --scheduler_plateau_patience 1 \
+        --scheduler_plateau_factor 0.1 \
+        --early_stopping_patience 5 \
+        --early_stopping_min_delta 0.0001 \
+        --train_max_epochs 200 \
+        --train_batch_size 128 \
+        --train_accumulate_grad_batches 1 \
+        --train_val_check_interval 1 \
+        --train_seed 42 \
+        --finetune false \
+        --finetune_lr 0.0001 \
+        --finetune_freeze_encoder false \
+        --finetune_checkpoint None
+    ```
+
+- **Fine-tune model (from MetaNetX datasets, fold 0)**
+
+    ```bash
+    python src/paper/learning/train.py \
+        --db metanetx \
+        --source ECFP \
+        --target SMILES \
+        --dataloader_num_workers 3 \
+        --enable_mixed_precision True \
+        --ddp_num_nodes 1 \
+        --split_method kfold \
+        --train_fold_index 0 \
+        --data_max_rows -1 \
+        --out_dir ${WORK}/hpc/llogs \
+        --out_sub_dir FOLD_0 \
+        --model_dim 512 \
+        --model_num_encoder_layers 3 \
+        --model_num_decoder_layers 3 \
+        --scheduler_method plateau \
+        --scheduler_lr 0.0001 \
+        --scheduler_plateau_patience 2 \
+        --scheduler_plateau_factor 0.1 \
+        --early_stopping_patience 6 \
+        --early_stopping_min_delta 0.0001 \
+        --train_max_epochs 200 \
+        --train_batch_size 128 \
+        --train_accumulate_grad_batches 1 \
+        --train_val_check_interval 1 \
+        --train_seed 42 \
+        --finetune true \
+        --finetune_lr 0.0001 \
+        --finetune_freeze_encoder true \
+        --finetune_checkpoint <path_to_pretrain_model_checkpoint>
+    ```
+
+### 3.4. Predict molecules with generative models
+
+The `src/paper/learning/predict.py` script can be used to generate molecules from the trained models. The script requires a trained model checkpoint and a tokenizer, which can be downloaded from the Zenodo archive(see [Installation](#2-installation)).
+
+- **Generate molecules from the fine-tuned model**
+
+    ```bash
+    python src/paper/learning/predict.py \
+        --model_path "data/models/finetuned.ckpt" \
+        --model_source_tokenizer "data/tokens/ECFP.model" \
+        --model_target_tokenizer "data/tokens/SMILES.model" \
+        --pred_mode "beam"
+    ```
+
+- **Getting help**
+
+    ```bash
+    python -u src/paper/learning/predict.py --help
+    ```
+
+- **Other examples within notebooks**
+
+    The [4.generation_evaluation.ipynb](notebooks/4.generation_evaluation.ipynb) and [5.generation_recovery.ipynb](notebooks/5.generation_recovery.ipynb) notebooks bring examples of how to use the `predict.py` script as a library to generate molecules within a master script.
+
+## Citation
+
+Meyer, P., Duigou, T., Gricourt, G., & Faulon, J.-L. Reverse Engineering Molecules from Fingerprints through Deterministic Enumeration and Generative Models. In preparation.
+
+## License
+
+This project is licensed under the MIT License. See the LICENSE file for details.
