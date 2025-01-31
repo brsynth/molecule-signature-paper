@@ -323,40 +323,6 @@ class Config:
         else:
             self.pred_max_length = None
 
-    @classmethod
-    def from_preset(cls, preset: str, **kwargs) -> "Config":
-        """Return a Config object from a preset."""
-        presets = {
-            "emolecules": {
-                "mode": "translate",
-                "db": "emolecules",
-                "split_method": "train_valid_split",
-            },
-            "metanetx": {
-                "mode": "translation",
-                "db": "metanetx",
-                "split_method": "kfold",
-                "split_num_folds": 5,
-            },
-        }
-        # presets = {
-        #     "ECFP -> SMILES": {
-        #         "mode": "translate",
-        #         "source": "ECFP",
-        #         "target": "SMILES"
-        #     },
-        #     "SIGNATURE -> SMILES": {
-        #         "mode": "translate",
-        #         "source": "SIGNATURE",
-        #         "target": "SMILES"
-        #     },
-        # }
-        if preset not in presets:
-            raise ValueError(f"Preset '{preset}' not found")
-        params = presets[preset]
-        params.update(kwargs)  # Overload default parameters
-        return cls(**params)
-
     def with_base_dir(self, base_dir: Path | str) -> "Config":
         """Return a new Config object with the base_dir attribute updated."""
         base_dir = Path(base_dir).resolve()
