@@ -1,6 +1,7 @@
 import argparse
 import logging
 from pathlib import Path
+import warnings
 
 import lightning as L
 import numpy as np
@@ -26,11 +27,22 @@ from paper.learning.utils import Tokenizer
 
 logger = logging.getLogger()
 
+# Disable RDKit warnings
 RDLogger.DisableLog("rdApp.error")
 RDLogger.DisableLog('rdApp.warning')
 
+# Disable some Lightining warnings
+warnings.filterwarnings("ignore", ".*The 'predict_dataloader' does not have many workers which may be a bottleneck.*")  # noqa
+
 
 # Utils -------------------------------------------------------------------------------------------
+
+def mol_from_smiles_with_exception(mol):
+    try:
+        return mol_from_smiles(mol)
+    except Exception:
+        return None
+
 
 def mol_to_ecfp_string(mol) -> str:
     return ecfp_to_string(mol_to_ecfp(mol))
