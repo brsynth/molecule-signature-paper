@@ -1,4 +1,4 @@
-name: Create release
+name: Draft release
 
 on:
   push:
@@ -6,14 +6,46 @@ on:
       - "*.*.*"
 
 jobs:
-  relase:
-    name: Create release
-    runs-on: ubuntu-latest
-    steps:
-    - name: Check out
-      uses: actions/checkout@v4
-    - name: Release
-      uses: softprops/action-gh-release@v2
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        body_path: CHANGELOG.md
+    changelog:
+        name: Draft release
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Check out
+              uses: actions/checkout@v4
+
+            - name: Get Tags
+              run: |
+                git fetch --tags
+
+            - name: Get new and previous versions
+              run: |
+
+                # Get the latest two tags
+                git tag | sort | grep -E "[0-9]+\.[0-9]+\.[0-9]" > versions.tmp
+                export NEW_VERSION=$(tail -n 1 versions.tmp)
+                export PREVIOUS_VERSION=$(tail -n 2 versions.tmp | head -n 1)
+
+                # Export to GitHub Actions environment
+                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+                echo "PREVIOUS_VERSION=$PREVIOUS_VERSION" >> $GITHUB_ENV
+
+            - name: Build the list of changes since previous version
+              run: |
+                grep -B 9999 "## $PREVIOUS_VERSION" CHANGELOG.md | sed \$d > RELEASE_CHANGELOG.md  # sed \$d removes the last line
+
+            - name: Check it works
+              run: |
+                    echo "New version: $NEW_VERSION"
+                    echo "Previous version: $PREVIOUS_VERSION"
+                    echo "Changes since previous version:"
+                    cat RELEASE_CHANGELOG.md
+            
+            - name: Create draft release
+              uses: softprops/action-gh-release@v2
+              with:
+                token: ${{ secrets.GITHUB_TOKEN }}
+                body_path: RELEASE_CHANGELOG.md
+                files: RELEASE_CHANGELOG.md
+                name: Release ${{ env.NEW_VERSION }}
+                draft: true
