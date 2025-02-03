@@ -55,48 +55,6 @@
 ### Feat
 
 - **prepare**: outputs additional column signature_morgans
-
-### Fix
-
-- **prepare**: remove deprecated import
-- **get_smiles**: remove superflous Hs
-- **prepare**: sanitize molecule after stereo-isomer enumeration
-- **prepare**: add missing header
-
-### Refactor
-
-- remove old code
-- **.env**: ignore local env file
-- erase old code
-
-## 2.0.4 (2024-12-10)
-
-### Fix
-
-- update changelog on version bump
-
-## 2.0.3 (2024-12-10)
-
-### Fix
-
-- attempt to trigger GA
-
-## 2.0.2 (2024-12-10)
-
-### Fix
-
-- main instead of master branch name
-
-## 2.0.1 (2024-12-10)
-
-### Fix
-
-- **dataset**: remove unused code
-
-## 2.0.0 (2024-12-09)
-
-### Feat
-
 - **learning**: add transformer code
 - **dataset**: add code to compute model tokens
 - **dataset**: add code for download and prepare datasets
@@ -116,6 +74,14 @@
 
 ### Fix
 
+- **prepare**: remove deprecated import
+- **get_smiles**: remove superflous Hs
+- **prepare**: sanitize molecule after stereo-isomer enumeration
+- **prepare**: add missing header
+- update changelog on version bump
+- attempt to trigger GA
+- main instead of master branch name
+- **dataset**: remove unused code
 - **transformer/train**: load_checkpoint
 - **transformer/train**: effective batch indexes
 - **transformer/train**: duplicated loss normalization
@@ -132,6 +98,9 @@
 
 ### Refactor
 
+- remove old code
+- **.env**: ignore local env file
+- erase old code
 - **transformer**: sweep code
 - **dataset**: clean deprecated code
 - **transformer**: remove deprecated code
@@ -226,12 +195,3 @@
 - **download**: update ouput name for the signature alphabet file
 - **download**: change default value of test and valid datasets
 - **download**: disable shuffling before sanitizing
-
-## 0.1.0 (2023-07-27)
-
-### Feat
-
-- **paper**: add tokenizer signature
-- **alphabet**: build reaction
-
-## 0.0.1 (2023-07-27)
