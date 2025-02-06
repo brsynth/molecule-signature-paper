@@ -17,7 +17,6 @@ This repository contains code to support the Molecule Signature publication. See
   - [3.3. Train generative models](#33-train-generative-models)
   - [3.4. Predict molecules with generative models](#34-predict-molecules-with-generative-models)
 - [4. Citation](#4-citation)
-- [5. License](#5-license)
 
 ## 1. Repository structure
 
@@ -250,7 +249,3 @@ The `src/paper/learning/predict.py` script can be used to generate molecules fro
 ## 4. Citation
 
 Meyer, P., Duigou, T., Gricourt, G., & Faulon, J.-L. Reverse Engineering Molecules from Fingerprints through Deterministic Enumeration and Generative Models. In preparation.
-
-## 5. License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
