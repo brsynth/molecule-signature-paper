@@ -1,7 +1,7 @@
 # Supporting content for the Molecule Signature paper
 
-[![Github Version](https://img.shields.io/github/v/release/brsynth/molecule-signature?display_name=tag&sort=semver)](version)
-[![Github Licence](https://img.shields.io/github/license/brsynth/molecule-signature)](LICENSE.md)
+[![Github Version](https://img.shields.io/github/v/release/brsynth/molecule-signature?display_name=tag&sort=semver&logo=github)](version)
+[![Github Licence](https://img.shields.io/github/license/brsynth/molecule-signature?logo=github)](LICENSE.md)
 
 This repository contains code to support the Molecule Signature publication. See citation for details.
 
