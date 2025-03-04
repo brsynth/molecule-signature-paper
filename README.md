@@ -78,7 +78,7 @@ The following steps will set up a `signature-paper` conda environment.
 
 2. **Download data:**
 
-    Precomputed alphabets, trained generative models and most important datasets are available as a Zenodo archive: <https://doi.org/10.5281/zenodo.5528831>. Extract the files and place them in the `data` directory.
+    Precomputed alphabets, trained generative models and most important datasets are available as a Zenodo archive: <https://zenodo.org/records/14760992>. Extract the files and place them in the `data` directory.
 
 3. **Optionnaly (for dev): set the signature package from source**
 
