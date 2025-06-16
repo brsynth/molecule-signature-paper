@@ -1,7 +1,8 @@
-import argparse
+"""Predict on a dataset using a trained model."""
 import logging
-from pathlib import Path
+import argparse
 import warnings
+from pathlib import Path
 
 import lightning as L
 import numpy as np
@@ -38,6 +39,7 @@ warnings.filterwarnings("ignore", ".*The 'predict_dataloader' does not have many
 # Utils -------------------------------------------------------------------------------------------
 
 def mol_from_smiles_with_exception(mol):
+    """Convert SMILES to RDKit Mol object, handling exceptions."""
     try:
         return mol_from_smiles(mol)
     except Exception:
@@ -45,6 +47,7 @@ def mol_from_smiles_with_exception(mol):
 
 
 def mol_to_ecfp_string(mol) -> str:
+    """Convert RDKit Mol object to ECFP string representation."""
     return ecfp_to_string(mol_to_ecfp(mol))
 
 
@@ -82,6 +85,7 @@ def refine_results(results: pd.DataFrame) -> pd.DataFrame:
 # Args --------------------------------------------------------------------------------------------
 
 def parse_args():
+    """Parse command line arguments and return a Config object."""
 
     parser = argparse.ArgumentParser(
         prog=Path(__file__).name,
@@ -226,7 +230,23 @@ def _run():
 
 
 def run(CONFIG=None, query_data=None):
+    """Run prediction on a dataset using a trained model.
 
+    Parameters
+    ----------
+    CONFIG : Config, optional
+        Configuration object with model and query settings. If None, will parse command line
+        arguments. Default is None.
+    query_data : pd.DataFrame, pd.Series, list, np.ndarray, str, optional
+        Data to use for prediction. If None, will use CONFIG.query_file or CONFIG.query_string.
+        Default is None. If provided, it can be a DataFrame with columns "Query ID" and "Query ECFP",
+        or a Series, list, numpy array, or string containing ECFP representations.
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with prediction results, including predicted SMILES, log probabilities,
+        and ECFP representations.
+    """
     # Prepare query settings
     if query_data is not None:
 
@@ -248,7 +268,9 @@ def run(CONFIG=None, query_data=None):
             raise ValueError("Invalid query_data type.")
 
     elif CONFIG.query_file is not None:
+        # If query_file is provided, read it
         CONFIG.query_file = Path(CONFIG.query_file)
+
         query_df = pd.read_csv(
             CONFIG.query_file,
             sep="\t",
@@ -274,11 +296,19 @@ def run(CONFIG=None, query_data=None):
     )
 
     # Dataloader
-    dataloader = DataLoader(dataset, batch_size=CONFIG.pred_batch_size, collate_fn=collate_fn_simple)  # noqa E501
+    dataloader = DataLoader(
+        dataset,
+        batch_size=CONFIG.pred_batch_size,
+        collate_fn=collate_fn_simple,
+    )
 
     # Load model
-    model = TransformerModel.load_from_checkpoint(CONFIG.model_path)
-    model.set_decoding_strategy(strategy=CONFIG.pred_mode, max_length=CONFIG.pred_max_length, beam_size=CONFIG.pred_beam_size)  # noqa E501
+    model = TransformerModel.load_from_checkpoint(CONFIG.model_path)  # noqa
+    model.set_decoding_strategy(
+        strategy=CONFIG.pred_mode,
+        max_length=CONFIG.pred_max_length,
+        beam_size=CONFIG.pred_beam_size
+    )
 
     # Predict
     trainer = L.Trainer(accelerator=CONFIG.device)
