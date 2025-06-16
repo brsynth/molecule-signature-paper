@@ -1,4 +1,6 @@
+"""Transformer model for sequence-to-sequence tasks."""
 import math
+import logging
 from pathlib import Path
 from typing import Tuple, List, Optional, Any
 
@@ -12,7 +14,6 @@ from torchmetrics.aggregation import MeanMetric
 from paper.learning.data import TSVDataset, collate_fn, generate_square_subsequent_mask
 
 # DEBUG LOGGING -----------------------------------------------------------------------------------
-import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -683,217 +684,6 @@ class TransformerModel(pl.LightningModule):
 
         return results  # (batch_size, 1, tgt_len)
 
-    def _beam_search_single_sequence_V5(
-        self,
-        source: torch.Tensor,
-        src_mask: torch.Tensor,
-        src_padding_mask: torch.Tensor,
-    ) -> List[Tuple[torch.Tensor, float]]:
-        """
-        Beam search for generating target sequences for a single source sequence.
-
-        Parameters
-        ----------
-        source : torch.Tensor
-            Source sequence: shape (1, src_len).
-        src_mask : torch.Tensor
-            Source mask (ex: (src_len, src_len)) or None.
-        src_padding_mask : torch.Tensor
-            Source padding mask: shape (1, src_len) or None.
-
-        Returns
-        -------
-        List[Tuple[torch.Tensor, float]]
-            List of generated target sequences and their scores.
-        """
-        # -- 1) Get decoding settings
-        msg = "Decoding settings not configured. Call `set_decoding_strategy` first."
-        try:
-            max_length = self.max_length
-            beam_size = self.beam_size
-        except AttributeError:
-            raise ValueError(msg)
-
-        # -- 2) Encode source
-        # Shape: (1, src_len, dim_model)
-        src_embedding = self.positional_encoding(self.src_token_embedding(source))
-        memory = self.transformer.encoder(
-            src_embedding, mask=src_mask, src_key_padding_mask=src_padding_mask
-        )
-
-        # -- 3) Initialize beam
-        # beam: List of (sequence: Tensor, score: float)
-        beam = [(torch.tensor([self.token_bos_idx], device=self.device), 0.0)]
-        completed_sequences: List[Tuple[torch.Tensor, float]] = []
-
-        # -- (Modification #1) Precompute the full look-ahead mask for max_length
-        #    Then we'll slice it as needed
-        full_look_ahead_mask = generate_square_subsequent_mask(max_length).to(self.device)
-
-        # -- 4) Iterative decoding
-        for _ in range(max_length):
-            candidates = []
-            all_candidates_completed = True
-
-            for seq, score in beam:
-                # If already ended with EOS, move it to completed_sequences
-                if seq[-1] == self.token_eos_idx:
-                    completed_sequences.append((seq, score))
-                    continue
-
-                all_candidates_completed = False  # At least one seq is still active
-
-                # Prepare target = shape (1, seq_len)
-                target = seq.unsqueeze(0)
-                # Embedding
-                tgt_embedding = self.positional_encoding(self.tgt_token_embedding(target))
-
-                # (Modification #1 continued) We slice the precomputed mask
-                seq_len = target.size(1)
-                tgt_mask = full_look_ahead_mask[:seq_len, :seq_len]
-
-                # Decode
-                output = self.transformer.decoder(
-                    tgt=tgt_embedding,
-                    memory=memory,
-                    tgt_mask=tgt_mask,
-                    memory_key_padding_mask=src_padding_mask,
-                )
-                # Last token logits => log_softmax
-                logits = self.generator(output[:, -1, :])  # (1, vocab_size)
-                log_probs = torch.log_softmax(logits, dim=-1)  # (1, vocab_size)
-
-                # Get top-k expansions
-                beam_size = self.beam_size
-                vocab_size = log_probs.size(-1)
-                k = min(beam_size, vocab_size)
-
-                topk_log_probs, topk_indices = log_probs.topk(k, dim=-1)
-                for i in range(k):
-                    next_seq = torch.cat([seq, topk_indices[0, i].unsqueeze(0)])
-                    next_score = score + topk_log_probs[0, i].item()
-                    candidates.append((next_seq, next_score))
-
-            # (Modification #2) Early stopping if everything is completed
-            if all_candidates_completed:
-                break
-
-            # Update the beam => select top beam_size
-            # (No deduplication here — same as original)
-            beam = sorted(candidates, key=lambda x: x[1], reverse=True)[:beam_size]
-
-        # -- 5) If no sequences ended with EOS, use the current beam
-        if not completed_sequences:
-            completed_sequences = beam
-
-        # Sort final sequences by score descending, keep top beam_size
-        completed_sequences = sorted(completed_sequences, key=lambda x: x[1], reverse=True)
-        completed_sequences = completed_sequences[:beam_size]
-
-        return completed_sequences
-
-    def _beam_search_single_sequence_BACKUP(
-        self,
-        source: torch.Tensor,
-        src_mask: torch.Tensor,
-        src_padding_mask: torch.Tensor,
-    ) -> List[Tuple[torch.Tensor, float]]:
-        """Beam search for generating target sequences for a single source sequence.
-
-        Parameters
-        ----------
-        source : torch.Tensor
-            Source sequence.
-        src_mask : torch.Tensor
-            Source mask.
-        src_padding_mask : torch.Tensor
-            Source padding mask.
-
-        Returns
-        -------
-        List[Tuple[torch.Tensor, float]]
-            List of generated target sequences and their scores.
-        """
-        # Get decoding settings
-        msg = "Decoding settings not configured. Call `set_decoding_strategy` first."
-        try:
-            max_length = self.max_length
-            beam_size = self.beam_size
-        except AttributeError:
-            raise ValueError(msg)
-
-        # Embed source
-        src_embedding = self.positional_encoding(self.src_token_embedding(source))  # (1, src_len, dim_model)  # noqa
-        memory = self.transformer.encoder(
-            src_embedding, mask=src_mask, src_key_padding_mask=src_padding_mask
-        )  # (1, src_len, dim_model)
-
-        # Initialize beam with BOS token
-        beam = [(torch.tensor([self.token_bos_idx], device=self.device), 0.0)]
-
-        # Store completed sequences
-        completed_sequences = []
-
-        for _ in range(max_length):
-            candidates = []
-            all_candidates_completed = True  # Flag to check if all candidates are completed
-
-            for seq, score in beam:
-                # Check if the sequence is completed
-                if seq[-1] == self.token_eos_idx:
-                    completed_sequences.append((seq, score))
-                    continue
-
-                # Update flag since we reached this point
-                all_candidates_completed = False
-
-                # Prepare target tensor
-                target = seq.unsqueeze(0)  # (1, seq_len)
-                tgt_embedding = self.positional_encoding(self.tgt_token_embedding(target))
-
-                # Generate target mask
-                tgt_mask = generate_square_subsequent_mask(target.size(1)).to(self.device)
-
-                # Decode target
-                output = self.transformer.decoder(
-                    tgt=tgt_embedding,
-                    memory=memory,
-                    tgt_mask=tgt_mask,
-                    memory_key_padding_mask=src_padding_mask
-                )
-
-                # Generate logits
-                logits = self.generator(output[:, -1, :])  # (1, vocab_size)
-                log_probs = torch.log_softmax(logits, dim=-1)  # (1, vocab_size)
-
-                # Get top-k candidates
-                topk_log_probs, topk_indices = log_probs.topk(beam_size)
-
-                for k in range(beam_size):
-                    next_seq = torch.cat([seq, topk_indices[0, k].unsqueeze(0)])
-                    next_score = score + topk_log_probs[0, k].item()
-                    candidates.append((next_seq, next_score))
-
-            # If all candidates are completed, stop
-            if all_candidates_completed:
-                break
-
-            # Select top-k candidates
-            beam = sorted(candidates, key=lambda x: x[1], reverse=True)[:beam_size]
-
-        # If no sequences are completed, use the current beam
-        if not completed_sequences:
-            completed_sequences = beam
-
-        # Reorder sequences by score
-        completed_sequences = sorted(completed_sequences, key=lambda x: x[1], reverse=True)
-
-        # Consider only the top-k sequences
-        completed_sequences = completed_sequences[:beam_size]
-
-        # Return completed sequences with scores
-        return completed_sequences
-
     def _beam_search_batch(
         self,
         batch: List[torch.Tensor],
@@ -1148,50 +938,6 @@ class TransformerModel(pl.LightningModule):
 
         return all_generated_sequences
 
-    def _beam_search_batch_BACKUP(
-        self,
-        batch: List[torch.Tensor],
-    ) -> List[List[Tuple[torch.Tensor, float]]]:
-        """Batched beam search for generating target sequences.
-
-        Parameters
-        ----------
-        batch : List[torch.Tensor]
-            A batch of source sequences to generate target sequences for.
-
-        Returns
-        -------
-        List[List[Tuple[torch.Tensor, float]]]
-            List of generated target sequences and their scores.
-        """
-        # Unpack the batch
-        source, _, _, src_mask, _, src_padding_mask, _ = batch
-        batch_size = source.size(0)
-
-        # Initialize list to store generated sequences
-        all_generated_sequences = []
-
-        for i in range(batch_size):
-
-            # # Log progress
-            # print(f"Predicting sequence {i + 1} of {batch_size}")
-
-            # Get individual source sequence
-            single_source = source[i].unsqueeze(0)  # (1, src_len)
-            single_src_mask = src_mask
-            single_src_padding_mask = src_padding_mask[i].unsqueeze(0) if src_padding_mask is not None else None  # noqa
-
-            # Generate sequences using beam search
-            # sequences = self._beam_search_single_sequence_BACKUP(
-            sequences = self._beam_search_single_sequence_V5(
-                single_source, single_src_mask, single_src_padding_mask
-            )
-
-            # Append generated sequences
-            all_generated_sequences.append(sequences)
-
-        return all_generated_sequences
-
     def _get_vocabulary_sizes(self) -> Tuple[int, int]:
         return (
             len(self.token_fns[0]),
@@ -1199,6 +945,7 @@ class TransformerModel(pl.LightningModule):
         )
 
     def freeze_encoder(self):
+        """Freeze the encoder parameters of the transformer model."""
         # Flag for later use
         self.finetune_freeze_encoder = True
 
@@ -1207,6 +954,7 @@ class TransformerModel(pl.LightningModule):
             param.requires_grad = False
 
     def print_trainable_parameters(self):
+        """Print the number of trainable parameters in the model."""
         trainable_params = 0
         all_params = 0
         for _, param in self.named_parameters():
