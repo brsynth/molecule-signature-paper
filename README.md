@@ -244,7 +244,7 @@ The `src/paper/learning/predict.py` script can be used to generate molecules fro
 
 - **Other examples within notebooks**
 
-    The [4.generation_evaluation.ipynb](notebooks/4.generation_evaluation.ipynb) and [5.generation_recovery.ipynb](notebooks/5.generation_recovery.ipynb) notebooks bring examples of how to use the `predict.py` script as a library to generate molecules within a master script.
+    The [4.generation_recovery.ipynb](notebooks/4.generation_recovery.ipynb) notebook bring examples of how to use the `predict.py` script as a library to generate molecules within a master script.
 
 ## 4. Citation
 
