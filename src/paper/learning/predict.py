@@ -328,13 +328,14 @@ def run(CONFIG=None, query_data=None):
     results = [r for batch in results for r in batch]  # remove batch dimension
     _tmp = []
     for idx, result in enumerate(results):
-        for tokens, logit in result:
+        for tokens, logit, timer in result:
             _tmp += [
                 pd.Series({
                     "Query ID": query_df["Query ID"].iloc[idx],
                     "Query ECFP": query_df["Query ECFP"].iloc[idx],
                     "Predicted Tokens": tokens.tolist(),
                     "Predicted Log Prob": logit,
+                    "Time Elapsed": timer,
                 })
             ]
     results = pd.DataFrame(_tmp)

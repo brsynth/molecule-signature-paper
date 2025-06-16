@@ -1,5 +1,6 @@
 """Transformer model for sequence-to-sequence tasks."""
 import math
+import time
 import logging
 from pathlib import Path
 from typing import Tuple, List, Optional, Any
@@ -759,6 +760,9 @@ class TransformerModel(pl.LightningModule):
         # scores starts at 0.0 for each sequence (sum of log_probs)
         scores = torch.zeros(batch_size * beam_size, device=device)
 
+        # Track execution time needed for each sequence
+        timers = torch.zeros(batch_size * beam_size, device=device)
+
         # Track if sequences are terminated (reached EOS token)
         # False = still active ; True = terminated
         is_finished = torch.zeros(batch_size * beam_size, dtype=torch.bool, device=device)
@@ -766,6 +770,9 @@ class TransformerModel(pl.LightningModule):
         # Precompute look-ahead mask 2D : (max_length, max_length)
         # will be sliced at each step
         full_look_ahead_mask = generate_square_subsequent_mask(max_length).to(device)
+
+        # Track time
+        start_time = time.perf_counter()
 
         # -- 5) Generation loop
         for step in range(max_length - 1):  # -1 as we already have the BOS token
@@ -813,21 +820,29 @@ class TransformerModel(pl.LightningModule):
             topk_log_probs = topk_log_probs.view(batch_size, beam_size, k)
             topk_indices = topk_indices.view(batch_size, beam_size, k)
             old_scores = scores.view(batch_size, beam_size)
+            old_timers = timers.view(batch_size, beam_size)
             old_sequences = sequences.view(batch_size, beam_size, -1)
             old_is_finished = is_finished.view(batch_size, beam_size)
 
             new_beam_sequences = []
             new_beam_scores = []
+            new_beam_timers = []
+
+            # Register computing time
+            exec_time = time.perf_counter() - start_time
 
             # Go through each element of the batch
             for i in range(batch_size):
-                candidates_dict = {}  # key: tuple(seq), value: (seq_tensor, score)
+                candidates_dict = {}  # key: tuple(seq), value: (seq_tensor, score, timer)
 
                 for b in range(beam_size):
+
                     if old_is_finished[i, b]:
+
                         # If the sequence is already finished, we copy it as is
                         seq_finished = old_sequences[i, b]
                         sc_finished = old_scores[i, b].item()
+                        tm_finished = old_timers[i, b].item()
 
                         # plus, we force the addition of a padding token to keep the shape
                         dummy_token = torch.tensor([self.token_pad_idx], device=device)
@@ -836,11 +851,12 @@ class TransformerModel(pl.LightningModule):
                         key = tuple(new_seq.tolist())
                         # Prevent duplication
                         if key not in candidates_dict:
-                            candidates_dict[key] = (new_seq, sc_finished)
+                            # Store sequence, score, and computing time
+                            candidates_dict[key] = (new_seq, sc_finished, tm_finished)
                         else:
-                            # If already present, we keep the best score
+                            # If already present, we keep the best score and update execution time
                             if sc_finished > candidates_dict[key][1]:
-                                candidates_dict[key] = (new_seq, sc_finished)
+                                candidates_dict[key] = (new_seq, sc_finished, tm_finished)
                         continue
 
                     # Else (not finished), we get k new expansions
@@ -854,16 +870,16 @@ class TransformerModel(pl.LightningModule):
                         new_seq = torch.cat([base_seq, next_token], dim=0)
                         key = tuple(new_seq.tolist())
                         if key not in candidates_dict:
-                            candidates_dict[key] = (new_seq, next_score)
+                            candidates_dict[key] = (new_seq, next_score, exec_time)
                         else:
                             # If already present, we keep the best score
                             if next_score > candidates_dict[key][1]:
-                                candidates_dict[key] = (new_seq, next_score)
+                                candidates_dict[key] = (new_seq, next_score, exec_time)
 
                 # From there, we have all the candidates for the batch element i. We
                 # will filter and keep only the top beam_size sequences (as we may have more)
                 # Filtering is done by score
-                all_candidates = list(candidates_dict.values())  # -> List[(seq, score)]
+                all_candidates = list(candidates_dict.values())  # -> List[(seq, score, exec_time)]
                 all_candidates.sort(key=lambda x: x[1], reverse=True)
                 best_candidates = all_candidates[:beam_size]
 
@@ -874,38 +890,46 @@ class TransformerModel(pl.LightningModule):
                         [self.token_bos_idx] + [self.token_unk_idx] * (seq_len),
                         device=device
                     )
-                    best_candidates.append((dummy_seq, float("-inf")))
+                    best_candidates.append((dummy_seq, float("-inf"), exec_time))
 
-                # Best candidates are stored in new_beam_sequences, new_beam_scores which
-                # will be reshaped later
+                # Best candidates are stored in new_beam_sequences, new_beam_scores, new_beam_timers
+                # which will be reshaped later
                 new_beam_sequences.append([c[0] for c in best_candidates])
                 new_beam_scores.append([c[1] for c in best_candidates])
+                new_beam_timers.append([c[2] for c in best_candidates])
 
-            # 5.5) Rebuidling the sequences, scores, is_finished tensors
-            # new_beam_sequences[i] is a list of beam_size Tensors for the query i
-            # data are stacked in the next batch
+            # 5.5) Rebuidling the sequences, scores, timers, is_finished tensors
+            # - new_beam_sequences[i] is a list of beam_size Tensors for the query i
+            # - new_beam_scores[i] is a list of beam_size scores for the query i
+            # - new_beam_timers[i] is a list of beam_size execution times for the query i
+            # Data are stacked in the next batch
             stacked_sequences = []
             stacked_scores = []
+            stacked_timers = []
             stacked_finished = []
             for i in range(batch_size):
                 seqs = new_beam_sequences[i]
                 scs = new_beam_scores[i]
+                timers = new_beam_timers[i]
 
                 # Stacked as 0 => (beam_size, seq_len+1)
                 seq_tensor = torch.stack(seqs, dim=0).to(device)
                 score_tensor = torch.tensor(scs, device=device, dtype=torch.float)
+                timer_tensor = torch.tensor(timers, device=device, dtype=torch.float)
 
                 # Look for terminated sequences
-                # Termniated sequences are sequences that end with EOS token or PAD token
+                # Terminated sequences are sequences that end with EOS token or PAD token
                 eos_mask = (seq_tensor[:, -1] == self.token_eos_idx) | (seq_tensor[:, -1] == self.token_pad_idx)  # noqa
                 stacked_sequences.append(seq_tensor)
                 stacked_scores.append(score_tensor)
+                stacked_timers.append(timer_tensor)
                 stacked_finished.append(eos_mask)
 
             # Everything is merged in a single tensor of shape (batch_size * beam_size, seq_len+1)
             # Same for scores and is_finished tensors
             sequences = torch.cat(stacked_sequences, dim=0)   # (batch_size * beam_size, seq_len+1)
             scores = torch.cat(stacked_scores, dim=0)         # (batch_size * beam_size,)
+            timers = torch.cat(stacked_timers, dim=0)         # (batch_size * beam_size,)
             is_finished = torch.cat(stacked_finished, dim=0)  # (batch_size * beam_size,)
 
         # -- 6) Regroup terminated sequences for each element of the batch
@@ -915,22 +939,25 @@ class TransformerModel(pl.LightningModule):
         # Reshape sequences and scores to (batch_size, beam_size, seq_len)
         final_sequences = sequences.view(batch_size, beam_size, -1)
         final_scores = scores.view(batch_size, beam_size)
+        final_timers = timers.view(batch_size, beam_size)
 
-        all_generated_sequences: List[List[Tuple[torch.Tensor, float]]] = []
+        all_generated_sequences: List[List[Tuple[torch.Tensor, float, float]]] = []
 
         for i in range(batch_size):
             seqs_i = final_sequences[i]
             scores_i = final_scores[i]
+            timers_i = final_timers[i]
 
             # Rank sequences by score
             idx_sorted = torch.argsort(scores_i, descending=True)
             sorted_seqs = seqs_i[idx_sorted]
             sorted_scores = scores_i[idx_sorted]
+            sorted_timers = timers_i[idx_sorted]
 
             # Conversion to list[ (seq_tensor, score), ... ]
             sequences_scored = []
-            for seq_t, sc in zip(sorted_seqs, sorted_scores):
-                sequences_scored.append((seq_t, float(sc.item())))
+            for seq_t, sc, tm in zip(sorted_seqs, sorted_scores, sorted_timers):
+                sequences_scored.append((seq_t, float(sc.item()), float(tm.item())))
 
             # Keep only top beam_size sequences
             best = sequences_scored[:beam_size]
