@@ -252,16 +252,23 @@ def run(CONFIG=None, query_data=None):
 
         # Case 1: query_data is a dataframe
         if isinstance(query_data, pd.DataFrame):
-            assert "Query" in query_data.columns
+            assert "Query ID" in query_data.columns
+            assert "Query ECFP" in query_data.columns
             query_df = query_data
 
         # Case 2: query_data is a series / list / numpy array
         elif isinstance(query_data, (pd.Series, list, np.ndarray)):
-            query_df = pd.DataFrame({"Query": query_data})
+            query_df = pd.DataFrame({
+                "Query ID": range(1, len(query_data) + 1),  # 1-indexed
+                "Query ECFP": query_data
+            })
 
         # Case3: query_data is a string
         elif isinstance(query_data, str):
-            query_df = pd.DataFrame({"Query": [query_data]})
+            query_df = pd.DataFrame({
+                "Query ID": [1],  # 1-indexed
+                "Query ECFP": [query_data]
+            })
 
         # Case 4: Invalid query_data type
         else:
@@ -277,11 +284,14 @@ def run(CONFIG=None, query_data=None):
             nrows=None if CONFIG.pred_max_rows == -1 else CONFIG.pred_max_rows,
             header=None
         )
-        query_df.rename(columns={0: "Query"}, inplace=True)
+        query_df.rename(columns={0: "Query ID", 1: "Query ECFP"}, inplace=True)
 
     else:
-        CONFIG.query_string = CONFIG.query_string.replace(",", "-")
-        query_df = pd.DataFrame({"Query": [CONFIG.query_string]})
+        # CONFIG.query_string = CONFIG.query_string.replace(",", "-")
+        query_df = pd.DataFrame({
+            "Query ID": [1],  # 1-indexed
+            "Query ECFP": [CONFIG.query_string]
+        })
 
     # Load tokenizers
     src_tokenizer = Tokenizer(model_path=CONFIG.model_source_tokenizer, fp_type="ECFP")
@@ -289,7 +299,7 @@ def run(CONFIG=None, query_data=None):
 
     # Load dataset
     dataset = ListDataset(
-        data=query_df["Query"].to_list(),
+        data=query_df["Query ECFP"].to_list(),
         token_fn=src_tokenizer,
         max_length=CONFIG.pred_max_length,
         max_rows=CONFIG.pred_max_rows,
@@ -321,8 +331,8 @@ def run(CONFIG=None, query_data=None):
         for tokens, logit in result:
             _tmp += [
                 pd.Series({
-                    "Query ID": idx+1,  # 1-indexed
-                    "Query ECFP": query_df["Query"].iloc[idx],
+                    "Query ID": query_df["Query ID"].iloc[idx],
+                    "Query ECFP": query_df["Query ECFP"].iloc[idx],
                     "Predicted Tokens": tokens.tolist(),
                     "Predicted Log Prob": logit,
                 })
