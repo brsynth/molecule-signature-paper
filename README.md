@@ -16,7 +16,10 @@ This repository contains code to support the Molecule Signature publication. See
   - [3.2 Deterministic enumeration](#32-deterministic-enumeration)
   - [3.3. Train generative models](#33-train-generative-models)
   - [3.4. Predict molecules with generative models](#34-predict-molecules-with-generative-models)
-- [4. Citation](#4-citation)
+- [4. Reproduce results (notebooks)](#4-reproduce-results-notebooks)
+  - [Enumeration](#enumeration)
+  - [Generative models](#generative-models)
+- [5. Citation](#5-citation)
 
 ## 1. Repository structure
 
@@ -242,10 +245,17 @@ The `src/paper/learning/predict.py` script can be used to generate molecules fro
     python -u src/paper/learning/predict.py --help
     ```
 
-- **Other examples within notebooks**
+## 4. Reproduce results (notebooks)
 
-    The [4.generation_recovery.ipynb](notebooks/4.generation_recovery.ipynb) notebook bring examples of how to use the `predict.py` script as a library to generate molecules within a master script.
+### Enumeration
 
-## 4. Citation
+### Generative models
+
+- Accuracies from the generative model (**Tables 1** and **2**) are computed using the [4.generation_recovery.ipynb](notebooks/4.generation_recovery.ipynb) notebook. This notebook also provides examples of how to use the `predict.py` script to generate molecules and evaluate their accuracy.
+
+- Accuracies from the cross comparisons between generative models(present and molforge models) and test datasets are computed using the [5.generative_molforge.ipynb](notebooks/5.generative_molforge.ipynb) notebook.
+
+
+## 5. Citation
 
 Meyer, P., Duigou, T., Gricourt, G., & Faulon, J.-L. Reverse Engineering Molecules from Fingerprints through Deterministic Enumeration and Generative Models. In preparation.
