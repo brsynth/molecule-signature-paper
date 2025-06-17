@@ -28,12 +28,7 @@ This repository contains code to support the Molecule Signature publication. See
 ├── data       < placeholder for data files >
 │   └── ..
 ├── notebooks  < supporting jupyter notebooks >
-│   ├── 1.enumeration_create_alphabets.ipynb
-│   ├── 2.enumeration_results.ipynb
-│   ├── 3.analysis_alphabets.ipynb
-│   ├── 4.generation_evaluation.ipynb
-│   ├── 5.generation_recovery.ipynb
-│   └── handy.py
+│   └── ..
 └── src        < source code for data preparation and modeling >
     └── paper
         ├── dataset
