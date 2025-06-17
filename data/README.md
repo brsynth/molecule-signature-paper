@@ -37,6 +37,13 @@ After the execution preparing datasets, tokens, and training models, the `data` 
 │   │   └── valid_fold4.tsv
 │   └── tokens
 ├── models          < pre-trained and fine-tuned models for SMILES and ECFP tokenization >
+├── molforge        < MolForge models and test dataset >
+│   ├── ECFP4_smiles_checkpoint.pth
+│   ├── ECFP4_vocab_sp.model
+│   ├── ECFP4_vocab_sp.vocab
+│   ├── ECFP4.smiles.test
+│   ├── smiles_vocab_sp.model
+│   └── smiles_vocab_sp.vocab
 └── tokens          < Sentence Piece tokenizer models (cp from emolecules) >
     ├── ECFP.model
     ├── ECFP.vocab
