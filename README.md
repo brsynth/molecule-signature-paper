@@ -17,7 +17,7 @@ This repository contains code to support the Molecule Signature publication. See
   - [3.3. Train generative models](#33-train-generative-models)
   - [3.4. Predict molecules with generative models](#34-predict-molecules-with-generative-models)
 - [4. Reproduce results (notebooks)](#4-reproduce-results-notebooks)
-  - [Deterministic Enumeration](#enumeration)
+  - [Deterministic enumeration](#deterministic-enumeration)
   - [Generative models](#generative-models)
   - [Analyses](#analyses)
 - [5. Citation](#5-citation)
@@ -243,7 +243,7 @@ The `src/paper/learning/predict.py` script can be used to generate molecules fro
 
 ## 4. Reproduce results (notebooks)
 
-### Deterministic Enumeration
+### Deterministic enumeration
 
 - The alphabets used the deterministic enumeration are created using the [1.enumeration_create_alphabets.ipynb](notebooks/1.enumeration_create_alphabets.ipynb) notebook.
 
