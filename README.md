@@ -17,8 +17,9 @@ This repository contains code to support the Molecule Signature publication. See
   - [3.3. Train generative models](#33-train-generative-models)
   - [3.4. Predict molecules with generative models](#34-predict-molecules-with-generative-models)
 - [4. Reproduce results (notebooks)](#4-reproduce-results-notebooks)
-  - [Enumeration](#enumeration)
+  - [Deterministic Enumeration](#enumeration)
   - [Generative models](#generative-models)
+  - [Analyses](#analyses)
 - [5. Citation](#5-citation)
 
 ## 1. Repository structure
