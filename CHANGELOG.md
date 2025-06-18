@@ -1,3 +1,26 @@
+## 4.0.0 (2025-06-18)
+
+### Feat
+
+- **notebooks**: drugs enumeration analysis
+- **notebooks**: correlation between computational times and molecular descriptors
+- **notebooks**: enumeration generation analysis
+- **notebooks**: atomic sig counts and venn diagram
+- **notebooks**: add chembl and molforge
+- **notebooks**: add chembl and molforge
+- **learning**: Report time of generations
+- **predict.py**: Change expected columns passed for queries: Query ID, Query ECFP
+- **predict.py**: sweep code
+- **notebooks**: cross comparisons between our generative vs molforge model
+- **notebooks**: assess both binary and counted ECFPs
+- **notebooks**: add ChEBML
+
+### Refactor
+
+- **notebooks**: renaming notebooks
+- **model.py**: sweep code
+- **handy.py**: helpful functions for notebooks
+
 ## 3.0.0 (2025-01-31)
 
 ### Feat
