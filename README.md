@@ -242,7 +242,11 @@ The `src/paper/learning/predict.py` script can be used to generate molecules fro
 
 ## 4. Reproduce results (notebooks)
 
-### Enumeration
+### Deterministic Enumeration
+
+- The alphabets used the deterministic enumeration are created using the [1.enumeration_create_alphabets.ipynb](notebooks/1.enumeration_create_alphabets.ipynb) notebook.
+
+- The deterministic enumerations on the test datasets are performed using the [2.enumeration_results.ipynb](notebooks/2.enumeration_results.ipynb) notebook.
 
 ### Generative models
 
@@ -250,6 +254,17 @@ The `src/paper/learning/predict.py` script can be used to generate molecules fro
 
 - Accuracies from the cross comparisons between generative models(present and molforge models) and test datasets are computed using the [5.generative_molforge.ipynb](notebooks/5.generative_molforge.ipynb) notebook.
 
+### Analyses
+
+- The analysis of the alphabets in terms of size and diversity (**Figures 2**, **S1** and **S3**) are computed using the [3.analysis_alphabets.ipynb](notebooks/3.analysis_alphabets.ipynb) notebook.
+
+- The analysis about the atomic signature repetitions of datasets and the Venn diagram of alphabets (**Figure S3**) are computed using the [6.statistics_databases.ipynb](notebooks/6.statistics_databases.ipynb) notebook.
+
+- The analysis and comparison of the enumerated and generated molecules (**Tables 1**, **2** and **Figure S5**) are computed using the [7.enumeration_generation_analysis.ipynb](notebooks/7.enumeration_generation_analysis.ipynb) notebook.
+
+- The correlations between molecular descriptors and computation times (**Table S1**) are computed using the [8.correlation_complexity_computation_time.ipynb](notebooks/8.correlation_complexity_computation_time.ipynb) notebook.
+
+- The analysis of the enumeration results on the DrugBank molecules (**Figures 3**, **S6**, **S7**, **Table S2**) are computed using the [9.enumeration_drugbank_analysis.ipynb](notebooks/9.enumeration_drugbank_analysis.ipynb) notebook.
 
 ## 5. Citation
 
